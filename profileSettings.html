@@ -1,0 +1,57 @@
+<div class="panel" id="profile-panel">
+    <div class="panel-header">
+        <h3 class="panel-title" id="profile-settings-header">Profile Settings</h3>
+    </div>
+    <div class="panel-main">
+        <div id="user-badge">
+            <img class="avatar" id="profile-picture" src="" alt="Profile Picture" />
+            <h3 class="profile-name" id="profile-name">Profile Name</h3>
+        </div>
+        <div id="profile-listing">...</div>
+    </div>
+    <div class="panel-footer">
+        <button class="btn-cancel btn" id="btn-discard">Discard</button>
+        <button class="btn-save btn" id="btn-save">Save</button>
+    </div>
+</div>
+<script>
+
+const btnDiscard = document.getElementById('btn-discard');
+const pfp_container = document.getElementById('profile-picture');
+const name_field = document.getElementById('profile-name');
+const header = document.getElementById('profile-settings-header');
+
+const profileName = name_field.value.trim();
+const profilePicture = null;
+
+pfp_container.addEventListener("click", setPfp);
+
+function setPfp() {
+    // get a picture to set AND convert it
+    let selectedImg = null;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.multiple = false;
+    input.onchange = (e) => {
+        if (e.target.files.length > 0) selectedImg = e.target.files[0];
+        if (!selectedImg) return false;
+        selectedImg = compressImage(selectedImg);
+        const previewHTML = `
+    <img class="avatar" id="pfp-preview" src="${selectedImg} alt="">
+    <button class="btn-cancel btn" id="btn-discard">Discard</button>
+    <button class="btn-save btn" id="btn-save">Save</button>`;
+
+        const overlay = document.createElement("div");
+        overlay.classList.add('overlay');
+
+        const previewPanel = document.createElement("div");
+        previewPanel.classList.add('preview-panel');
+        previewPanel.innerHTML = previewHTML;
+
+        document.body.appendChild(overlay);
+        overlay.appendChild(previewPanel);
+    };
+    input.click();
+}
+</script>

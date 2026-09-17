@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Enter your Token</title>
+    <style>
+        :root {
+            --fsize: 1;
+            --bg: #1e1e1e;
+            --text: #fff;
+            --bub: 43, 45, 49;
+            --my-bub: 37, 99, 236;
+            --alpha: 0.75;
+            --bot: #252526;
+            --inp: #2d2d30;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Inter, "Segoe UI", sans-serif;
+            transition: 0.2s;
+        }
+
+        #app-container {
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-size: cover;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: filter 0.2s;
+        }
+
+        pre {
+            margin: 0;
+            font-family: monospace;
+        }
+
+        .settings-panel {
+            width: 340px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 9999;
+            padding: 24px;
+            border-radius: 20px;
+            background: rgba(35, 35, 35, 0.95);
+            backdrop-filter: blur(16px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            box-sizing: border-box;
+        }
+
+        .settings-panel h2 {
+            margin: 0;
+            font-size: calc(var(--fsize) * 15px);
+            text-align: center;
+        }
+
+        .settings-panel input[type="password"] {
+            width: 100%;
+            padding: 6px;
+            border: none;
+            outline: none;
+            border-radius: 6px;
+            background: var(--inp);
+            color: var(--text);
+            box-sizing: border-box;
+        }
+
+        .keep-token {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin: -2px 0 0;
+            width: fit-content;
+            cursor: pointer;
+        }
+
+        .keep-token input {
+            margin: 0;
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+        }
+
+        .keep-token label {
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .settings-panel button {
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
+            background: rgb(var(--my-bub));
+            color: var(--text);
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-container"></div>
+
+<script>
+    function askToken() {
+        function saveTokenAndClose() {
+            const tokenValue = input.value.trim();
+            const keep = document.getElementById("keep-token").checked;
+
+            document.cookie = `token=${encodeURIComponent(tokenValue)}; path=/; SameSite=Lax${keep ? "; max-age=2147483647" : ""}`;
+
+            overlay.remove();
+            document.getElementById("app-container").style.filter = "none";
+            window.location.reload();
+        }
+
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        overlay.id = "token-modal";
+        overlay.style.zIndex = "999999";
+
+        overlay.innerHTML = `
+            <div class="settings-panel">
+                <h2>Enter your Access Token</h2>
+                <input type="password" id="token-entry" placeholder="Token" autofocus>
+                <div class="keep-token">
+                    <input type="checkbox" id="keep-token" checked>
+                    <label for="keep-token">Keep Me Signed In</label>
+                </div>
+                <button id="token-enter">Unlock</button>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const input = document.getElementById("token-entry");
+        input.focus();
+
+        input.addEventListener("keydown", e => {
+            if (e.key === "Enter") saveTokenAndClose();
+        });
+
+        document.getElementById("token-enter").addEventListener("click", saveTokenAndClose);
+    }
+
+    function generateBG(r, c) {
+        const chars = " 10";
+        const values = [Array(c).fill(0)];
+        const screen = [];
+
+        for (let i = 0; i < r; i++) {
+            screen.push([]);
+            values.push([]);
+
+            for (let j = 0; j < c; j++) {
+                let v = Math.round(
+                    Math.random() > 0.95
+                        ? 1
+                        : values[i > 0 ? i - 1 : 0][j] > 0
+                            ? Math.random() > 0.3
+                            : 0
+                );
+
+                v = v >= 1 ? v + Math.round(Math.random()) : v;
+
+                const charIndex = v >= chars.length ? chars.length - 1 : v;
+                screen[i].push(chars[charIndex]);
+                values[i].push(v > 1 ? 2 : v);
+            }
+        }
+
+        return screen;
+    }
+
+    function renderBG() {
+        const cols = Math.ceil(window.innerWidth / 10);
+        const rows = Math.ceil(window.innerHeight / 20);
+        const bg = generateBG(rows, cols);
+        const container = document.getElementById("app-container");
+
+        container.style.filter = "blur(3px)";
+        container.style.color = "#777";
+        container.style.fontSize = "20px";
+        container.style.lineHeight = "20px";
+        container.innerHTML = `<pre>${bg.map(r => r.join("")).join("\n")}</pre>`;
+    }
+
+    window.addEventListener("resize", renderBG);
+
+    renderBG();
+    askToken();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+    <meta charset="utf-8">
+    <style>
+        :root {
+            --fsize: 1;
+            --bg: #1e1e1e;
+            --text: #fff;
+            --bub: 43, 45, 49;
+            --my-bub: 37, 99, 236;
+            --alpha: 0.75;
+            --bot: #252526;
+            --inp: #2d2d30;
+        }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Inter, "Segoe UI", sans-serif;
+            transition: 0.2s;
+        }
+
+        #app-container {
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-size: cover;
+
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: filter 0.2s;
+        }
+        .settings-panel {
+            width: 340px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 9999;
+
+            padding: 24px;
+            border-radius: 20px;
+
+            background: rgba(35, 35, 35, 0.95);
+            backdrop-filter: blur(16px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        .settings-panel h2 {
+            margin: 0;
+            font-size: calc(var(--fsize)*15px);
+            text-align: center;
+        }
+
+        .settings-panel input {
+            padding: 6px;
+            border: none;
+            outline: none;
+            border-radius: 6px;
+
+            background: var(--inp);
+            color: var(--text);
+        }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            background: rgba(0, 0, 0, 0.3);
+        }
+    </style>
+    <title>Choose your Username</title></head>
+<body>
+
+<div id="app-container"></div>
+
+<div style="z-index: 999999999;" class="modal-overlay">
+    <div class="settings-panel">
+        <h2>Choose your Username</h2>
+        <input id="username" type="text" value="user_967944">
+        <button id="sgnup">Sign Up!</button>
+    </div></div>
+<script>
+    function generateBG(r,c) {
+        const chars = " 10";
+        const values = [Array(80).fill(0)];
+        const screen = [];
+        for (let i = 0; i < r; i++) {
+            screen.push([]);
+            values.push([]);
+            for (let j = 0; j < c; j++) {
+                let v = Math.round(Math.random()>0.95?1:values[i>0?i-1:0][j]>0?Math.random()>0.3:0);
+                v = v>=1?v+Math.round(Math.random()):v;
+                screen[i].push(chars[v>chars.length?chars.length:v]);
+                values[i].push(v>1?2:v);
+            }
+        }
+        return screen;
+    }
+    function renderBG() {
+        const bg = generateBG(50,200);
+        const container = document.getElementById("app-container");
+        container.style.filter = "blur(3px)";
+        container.style.color = "#00FF00";
+        container.style.fontSize = "20px";
+        container.innerHTML = `<pre>${bg.map(r=>r.join("")).join("\n")}</pre>`;
+        document.body.appendChild(container);
+    }
+    renderBG();
+
+    document.getElementById("username").addEventListener("keydown", e => {if (e.key === "Enter") sign_up();});
+    document.getElementById("sgnup").addEventListener("click", sign_up);
+    document.title = "Choose your Username";
+
+    async function sign_up() {
+        const usr = document.getElementById("username").value.trim();
+        if (!usr) return;
+        const reg = await fetch("/register/"+usr);
+
+        if (!reg.ok) {
+            alert("Username already exists: "+ JSON.stringify(reg));
+            return;
+        }
+        myName = usr;
+        location.reload();
+
+
+    }
+</script>
+</body></html>

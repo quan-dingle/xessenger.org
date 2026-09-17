@@ -1,0 +1,292 @@
+:root {
+    --bg: #050505;
+    --text: #00ff66; /* Classic terminal phosphor green */
+    --text-muted: #008f3f;
+    --surface: #0a0a0a;
+    --input: #000000;
+    --border: #00ff66;
+    --my-bubble: #ffb000; /* Amber accent for user/self messages */
+    --bubble: 10, 10, 10;
+    --fsize: 1.2;
+}
+
+body.light-mode {
+    --bg: #f0f0f0;
+    --text: #004411;
+    --text-muted: #006622;
+    --surface: #e0e0e0;
+    --input: #ffffff;
+    --border: #004411;
+    --my-bubble: #b86b00;
+    --bubble: 220, 220, 220;
+}
+
+/* =========================================================
+   GLOBAL TERMINAL STYLES
+   ========================================================= */
+
+body {
+    user-select: none;
+    margin: 0;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Courier New", Courier, monospace;
+    text-shadow: 0 0 4px rgba(0, 255, 102, 0.4);
+}
+
+/* Optional CRT Scanline Overlay Effect */
+body::after {
+    content: " ";
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+    background-size: 100% 4px;
+    z-index: 999;
+    pointer-events: none;
+}
+
+input, select, button {
+    font-family: "Courier New", Courier, monospace !important;
+}
+
+
+/* =========================================================
+   BACKGROUND / APP CONTAINER
+   ========================================================= */
+
+#background {
+    display: none; /* Hide canvas background for pure terminal look */
+}
+
+#app-container {
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+}
+
+
+/* =========================================================
+   TOP BAR (SYSTEM STATUS)
+   ========================================================= */
+
+#top {
+    height: 45px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    border-bottom: 2px dashed var(--border);
+}
+
+#chat-icon, #pfp {
+    width: 24px;
+    height: 24px;
+    border-radius: 0;
+    border: 1px solid var(--border);
+}
+
+#room-area {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#room-selector {
+    height: 28px;
+    background: var(--input);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 0;
+    padding: 0 5px;
+    font-size: 13px;
+}
+
+#new-room {
+    width: 28px;
+    height: 28px;
+    background: var(--input);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 0;
+    cursor: pointer;
+}
+
+
+/* =========================================================
+   CHAT FEED
+   ========================================================= */
+
+#chat {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.message-container {
+    width: 100%;
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+}
+
+.message-header {
+    display: none; /* CLI style folds sender and time directly into text flow */
+}
+
+
+/* =========================================================
+   CLI MESSAGE BLOCKS ([USER] text 12:23:34)
+   ========================================================= */
+
+.bubble {
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    font-size: calc(var(--fsize) * 14px);
+    color: var(--text);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Custom pseudo-elements to fake the CLI bracket structure */
+.message-container .bubble::before {
+    content: "[" attr(data-sender) "] ";
+    color: var(--text-muted);
+    font-weight: bold;
+}
+
+.message-container.self .bubble::before {
+    color: var(--my-bubble);
+}
+
+.self .bubble {
+    color: var(--my-bubble);
+    text-shadow: 0 0 4px rgba(255, 176, 0, 0.4);
+}
+
+.bubble:hover {
+    filter: none;
+    background: rgba(0, 255, 102, 0.05);
+}
+
+.time {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: 8px;
+}
+
+.deleted-message .bubble {
+    color: #555;
+    text-decoration: line-through;
+}
+
+
+/* =========================================================
+   ATTACHMENTS & PREVIEWS
+   ========================================================= */
+
+.attachment-bubble {
+    border: 1px dashed var(--border);
+    border-radius: 0;
+    background: var(--surface);
+    padding: 4px;
+}
+
+.link-preview {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 0;
+}
+
+
+/* =========================================================
+   BOTTOM BAR & INPUT
+   ========================================================= */
+
+#bottom {
+    padding: 8px;
+    background: var(--surface);
+    border-top: 2px dashed var(--border);
+    display: flex;
+    gap: 6px;
+}
+
+#msg {
+    flex: 1;
+    height: 34px;
+    background: var(--input);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 0;
+    padding: 0 8px;
+    font-size: 14px;
+    outline: none;
+}
+
+#msg:focus {
+    box-shadow: 0 0 4px var(--border);
+}
+
+#send-msg, #upload, #open-prefs {
+    height: 34px;
+    background: var(--input);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 0;
+    padding: 0 12px;
+    cursor: pointer;
+}
+
+#send-msg:hover, #upload:hover, #open-prefs:hover {
+    background: var(--text);
+    color: var(--bg);
+}
+
+
+/* =========================================================
+   MODALS / PREFERENCES
+   ========================================================= */
+
+.modal-panel {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 0;
+    box-shadow: 0 0 20px rgba(0, 255, 102, 0.2);
+}
+
+.form-field input, .form-field select {
+    background: var(--input);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 0;
+}
+
+.btn {
+    border-radius: 0;
+    border: 1px solid var(--border);
+}
+
+.btn-save {
+    background: var(--text);
+    color: var(--bg);
+}
+
+.btn-cancel {
+    background: var(--input);
+    color: var(--text);
+}
