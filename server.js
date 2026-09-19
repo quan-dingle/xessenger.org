@@ -16,7 +16,7 @@ TODO:|\/\|\/\|\/\|\/\|\/\|\/\|\/
 - better room selector
 */
 
-const isServer = os.hostname() === "vmd197130";
+const isServer = true;//os.hostname() === "vmd197130";
 console.log("launched as",os.hostname()+", currently in",isServer?"prod":"dev")
 import os from "os";
 import http from "http";
@@ -102,7 +102,7 @@ const server = http.createServer((req, res) => {
     }
     if (req.url === "/style.css") {
         res.writeHead(200, {"Content-Type": "text/css"});
-        res.end(fs.readFileSync("public/style.css").toString());
+        res.end(fs.readFileSync("public/style2.css").toString());
         return;
     }
     if (req.url === "/app.js") {
@@ -436,8 +436,9 @@ const server = http.createServer((req, res) => {
     if (req.url === "/crash-hard") {gracefulShutdown("User-induced by @"+user.name, false)}
 
     // maybe log for fuzzer detection. definitely scary if anyone lands here
-    res.writeHead(400, { "Content-Type": "text/plain" });
-    res.end("what the fuck did you request?");
+    res.writeHead(400, { "Content-Type": "text/html" });
+    res.end(fs.readFileSync("patterns/background.html"))
+    //res.end("what the fuck did you request?");
 
 }).listen(PORT,"127.0.0.1");
 

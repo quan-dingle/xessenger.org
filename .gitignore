@@ -3,3 +3,4 @@ assets/websites/
 patterns/
 *.json
 upload.py
+.idea

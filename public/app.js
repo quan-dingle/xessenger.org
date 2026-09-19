@@ -139,9 +139,9 @@ document.addEventListener("keypress", e => { if (e.key === "Escape") open_prefs(
 // switch chatroom
 function changeRoom(room) {
     //if (room==="create_room") return createRoom();
-    activeRoom = room;
     document.cookie = "room=" + room+"; path=/";
-    if (!!activeRoom!==!!room) {
+    print(room,activeRoom);
+    if ((!!Number(room))!==(!!activeRoom)) { //room!==activeRoom&&(!room||!activeRoom
         scriptChange = true;
         window.remove_script();
         delete window.remove_script;
@@ -153,6 +153,7 @@ function changeRoom(room) {
         newScript.id = "bg-script";
         document.body.appendChild(newScript);
     }
+    activeRoom = Number(room);
     void start();
 }
 
@@ -371,7 +372,10 @@ function addMessage(data) {
     const bubble = container.querySelector(".bubble");
     const attachmentBubble = container.querySelector(".attachment-bubble");
     if (bubble) bubble.onclick = () => contextMenu(container);
-    if (attachmentBubble) attachmentBubble.onclick = () => contextMenu(container);
+    if (attachmentBubble) attachmentBubble.addEventListener("click", () => {
+    	  if (document.fullscreenElement) document.exitFullscreen();
+    	  else attachmentBubble.requestFullscreen();
+    	  });
     chat.scrollTop = chat.scrollHeight;
 }
 
@@ -1000,3 +1004,4 @@ function contextMenu(container) {
 
     setTimeout(() => document.addEventListener("click", outsideClick), 0);
 }
+

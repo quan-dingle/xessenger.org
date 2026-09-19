@@ -4,8 +4,8 @@
   --bg: #1e1e1e;
   --text: #fff;
 
-  --bubble: 43, 45, 49;
-  --my-bubble: 37, 99, 236;
+  --bub: 43, 45, 49;
+  --my-bub: 37, 99, 236;
   --alpha: 0.75;
 
   --surface: #252526;
@@ -26,8 +26,8 @@ body.light-mode {
   --bg: #f3f4f6;
   --text: #1f2937;
 
-  --bubble: 209, 213, 219;
-  --my-bubble: 147, 197, 253;
+  --bub: 209, 213, 219;
+  --my-bub: 147, 197, 253;
 
   --surface: #e5e7eb;
   --input: #fff;
@@ -61,7 +61,7 @@ body {
 
 input[type="checkbox"],
 input[type="range"] {
-  accent-color: rgb(var(--my-bubble));
+  accent-color: rgb(var(--my-bub));
 }
 
 button {
@@ -688,7 +688,7 @@ body.light-mode .time {
   padding: 10px;
   border-radius: 16px;
 
-  background: rgba(var(--bubble), var(--alpha));
+  background: rgba(var(--bub), var(--alpha));
   backdrop-filter: blur(2px);
   box-shadow:
           0 2px 10px rgba(0, 0, 0, .25),
@@ -731,11 +731,11 @@ body.light-mode .time {
 }
 
 .self .bubble {
-  background: rgba(var(--my-bubble), var(--alpha));
+  background: rgba(var(--my-bub), var(--alpha));
 }
 
 .self-temp .bubble {
-  background: rgba(var(--my-bubble), calc(var(--alpha) / 2));
+  background: rgba(var(--my-bub), calc(var(--alpha) / 2));
 }
 
 .message-container.self.top .attachment-bubble,
@@ -766,13 +766,13 @@ body.light-mode .time {
 
 .bubble:hover {
   filter: brightness(1.12);
-  background: rgba(var(--bubble), 1);
+  background: rgba(var(--bub), 1);
   text-shadow: 0 0 5px #fff;
 }
 
 .self .bubble:hover {
   text-shadow: 0 0 5px #faf;
-  background: rgba(var(--my-bubble), 1);
+  background: rgba(var(--my-bub), 1);
 }
 
 .edited-tag {
@@ -891,6 +891,14 @@ body.light-mode .time {
   background: #505050;
 }
 
+
+*:fullscreen {
+	  display: flex;
+	    justify-content: center;
+	      align-items: center;
+	        flex-direction: column;
+	        
+}
 /* =========================================================
    CONTEXT MENU
    ========================================================= */
@@ -937,8 +945,8 @@ body.light-mode .time {
 .editing-message {
   position: relative;
   z-index: 9999999999 !important;
-  border-color: rgba(var(--my-bubble), .7);
-  box-shadow: 0 0 0 3px rgba(var(--my-bubble), .12);
+  border-color: rgba(var(--my-bub), .7);
+  box-shadow: 0 0 0 3px rgba(var(--my-bub), .12);
 }
 
 .history-message {
@@ -1033,7 +1041,7 @@ body.light-mode .time {
 
   overflow: hidden;
 
-  background: rgba(var(--bubble), var(--alpha));
+  background: rgba(var(--bub), var(--alpha));
 
   border-radius: 16px;
 
@@ -1103,9 +1111,9 @@ body.light-mode .time {
 }
 
 #msg:focus {
-  border-color: rgba(var(--my-bubble), .7);
+  border-color: rgba(var(--my-bub), .7);
 
-  box-shadow: 0 0 0 3px rgba(var(--my-bubble), .12);
+  box-shadow: 0 0 0 3px rgba(var(--my-bub), .12);
 }
 
 
@@ -1121,7 +1129,7 @@ body.light-mode .time {
   border: none;
   border-radius: var(--radius-sm);
 
-  background: rgb(var(--my-bubble));
+  background: rgb(var(--my-bub));
   color: #fff;
 
   font: inherit;
@@ -1291,10 +1299,10 @@ body.light-mode .time {
 
 .form-field input:focus,
 .form-field select:focus {
-  border-color: rgba(var(--my-bubble), .7);
+  border-color: rgba(var(--my-bub), .7);
 
   box-shadow:
-          0 0 0 3px rgba(var(--my-bubble), .12);
+          0 0 0 3px rgba(var(--my-bub), .12);
 }
 
 .form-field select {
@@ -1356,23 +1364,37 @@ body.light-mode .time {
 }
 
 .btn-save {
-  background: rgb(var(--my-bubble));
+  background: rgb(var(--my-bub));
   color: white;
 }
 
 
 /* =========================================================
-   SETTINGS SWITCH
+   SETTINGS
    ========================================================= */
 
-.settings-switch {
+.setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  width: 100%;
+  min-height: 36px;
+}
+
+.setting .settings-switch {
   position: relative;
 
-  width: 50px;
+  width: 100%;
   height: 28px;
 
   display: flex;
   align-items: center;
+  justify-content: space-between;
+}
+
+.settings-switch p {
+  margin: 0;
 }
 
 .settings-switch input {
@@ -1385,8 +1407,12 @@ body.light-mode .time {
 }
 
 .switch-slider {
-  position: absolute;
-  inset: 0;
+  position: relative;
+
+  flex-shrink: 0;
+
+  width: 50px;
+  height: 28px;
 
   background-color: #ccc;
 
@@ -1403,7 +1429,7 @@ body.light-mode .time {
   position: absolute;
 
   left: 4px;
-  bottom: 4px;
+  top: 4px;
 
   width: 20px;
   height: 20px;
@@ -1419,7 +1445,7 @@ body.light-mode .time {
 }
 
 .settings-switch input:checked + .switch-slider {
-  background-color: rgb(var(--my-bubble));
+  background-color: rgb(var(--my-bub));
 }
 
 .settings-switch input:checked + .switch-slider::before {

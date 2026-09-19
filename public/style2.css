@@ -5,8 +5,8 @@
     --surface: #0a0a0a;
     --input: #000000;
     --border: #00ff66;
-    --my-bubble: #ffb000; /* Amber accent for user/self messages */
-    --bubble: 10, 10, 10;
+    --my-bub: #ffb000; /* Amber accent for user/self messages */
+    --bub: 10, 10, 10;
     --fsize: 1.2;
 }
 
@@ -17,8 +17,8 @@ body.light-mode {
     --surface: #e0e0e0;
     --input: #ffffff;
     --border: #004411;
-    --my-bubble: #b86b00;
-    --bubble: 220, 220, 220;
+    --my-bub: #b86b00;
+    --bub: 220, 220, 220;
 }
 
 /* =========================================================
@@ -171,11 +171,11 @@ input, select, button {
 }
 
 .message-container.self .bubble::before {
-    color: var(--my-bubble);
+    color: var(--my-bub);
 }
 
 .self .bubble {
-    color: var(--my-bubble);
+    color: var(--my-bub);
     text-shadow: 0 0 4px rgba(255, 176, 0, 0.4);
 }
 
