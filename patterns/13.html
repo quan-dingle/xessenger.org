@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pattern - 13</title>
+    <style>
+        body {
+            font-family: monospace;
+            color: #FFF;
+            background: #000;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+
+<script>
+    const fsize = 2;
+    const dims = [Math.trunc(window.innerHeight/getGlyphSize()[0]-1), Math.trunc(window.innerWidth/getGlyphSize()[1])];
+
+    let offx = -dims[1]/2;
+    let offy = -dims[0]/2;
+    let zoom = .005;
+
+    function getGlyphSize() {
+        const s = document.createElement("span");
+        s.textContent = "W";
+        s.style.font = fsize+"px monospace";
+        document.body.appendChild(s);
+        const rect = s.getBoundingClientRect();
+        s.remove()
+        return [rect.height, rect.width];
+    }
+
+    function create() {
+        const screen = Array(dims[0]).fill(null).map(()=>Array(dims[1]).fill(" "));
+
+        for (let y = 0; y < dims[0]; y++) {
+            for (let x = 0; x < dims[1]; x++) {
+                const x_ = zoom*(x+offx);
+                const y_ = zoom*(y+offy);
+
+                let zx = 0, zy = 0;
+                for (let i=0; i<1000; ++i) {
+                    const xt = zx*zx - zy*zy + x_;
+                    zy = 2*zx*zy + y_;
+                    zx = xt;
+
+                    if (zx*zx + zy*zy > 4) screen[y][x] = " █"[i%2];
+                }
+            }
+        }
+        // map iteration counts to suiting glyph via modular op
+        // it's happening up there --^
+        return screen;
+    }
+
+    function render() {document.body.style.font = fsize+"px monospace";document.body.innerHTML = ` <pre>${create().map(r=>r.join("")).join("\n")}</pre> `;}
+    render();
+    document.addEventListener("wheel", (e) => {
+        if (e.ctrlKey) {
+            e.preventDefault();
+            zoom *= e.deltaY > 0 ? 0.9 : 1.1;
+            //zoom = Math.max(1, Math.min(100, fsize));
+            render();
+            return;
+        }
+        const s = 10;
+
+        if (e.shiftKey) offx += s*Math.sign(e.deltaX || e.deltaY);
+        else offy += s*Math.sign(e.deltaY);
+
+        render();
+    }, { passive: false });
+</script>
+</body>
+</html>

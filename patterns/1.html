@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pattern - 1</title>
+    <style>
+        body {
+            font-family: monospace;
+            color: #FFF;
+            background: #000;
+            font-size: 2px;
+        }
+    </style>
+</head>
+<body>
+
+<script>
+    function create() {
+        const screen = Array(1000).fill(null).map(()=>Array(2000).fill("█"));
+
+        for (let i = 0; i < screen.length; i++) {
+            for (let j = 0; j < screen[0].length; j++) {
+                for (let a = 0; a < 10; a++) {
+                    const y = i;
+                    const x = j/2;
+                    if ((Math.floor(y / (3 ** a) % 2) === 1) && (Math.floor(x / (3 ** a) % 2) === 1)) screen[i][j] = " ";
+                }
+            }
+        }
+        return screen;
+    }
+    function render() {
+        const bg = create();
+        document.body.innerHTML = ` <pre>${bg.map(r=>r.join("")).join("\n")}</pre> `;
+    }
+    render();
+</script>
+</body>
+</html>

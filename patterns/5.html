@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pattern - 5</title>
+    <style>
+        body {
+            font-family: monospace;
+            color: #FFF;
+            background: #000;
+            font-size: 2px;
+        }
+    </style>
+</head>
+<body>
+
+<script>
+    function create() {
+        const dims = [300,2650];
+        const screen = Array(dims[0]).fill(null).map(()=>Array(dims[1]).fill(" "));
+        const xf = 2.25;
+        const yf = 1.25;
+
+        for (let y = 0; y < screen.length; y++) {
+            for (let x = 0; x < screen[0].length; x+=.5) {
+                const x_ = -Math.abs(x*xf-dims[1]*(xf/2))+dims[1]*(xf/2);
+                const y_ = -Math.abs(y*yf-dims[0]*(yf/2))+dims[0]*(yf/2);
+                const lx = Math.sin(10*Math.log(x_))>0?1:0;
+                const ly = Math.sin(10*Math.log(y_))>0?1:0;
+
+                if (lx^ly) screen[y][x] = "█";
+            }
+        }
+        return screen;
+    }
+    document.body.innerHTML = ` <pre>${create().map(r=>r.join("")).join("\n")}</pre> `;
+
+</script>
+</body>
+</html>

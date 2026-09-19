@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pattern - 16</title>
+    <style>
+        body {
+            font-family: monospace;
+            color: #FFF;
+            background: #000;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .controls {
+            position: absolute;
+            user-select: none;
+            z-index: 10000;
+            font-size: 35px;
+        }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 999999;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+        }
+        #app-container {pointer-events: none}
+        .settings-panel {
+            width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+
+            padding: 24px;
+            border-radius: 20px;
+
+            background: rgba(35, 35, 35, 0.15);
+            backdrop-filter: blur(16px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        .stats-window {
+            background: rgba(35, 35, 35, 0.5);
+            position:absolute;
+            z-index: 100;
+            right:0px;
+            top: 0px;
+            width: 350px;
+            height: 175px;
+        }
+        .graph {
+            position: absolute;
+            top: 5%;
+            left: 5%;
+            width: 90%;
+            height: 70%;
+            background: rgba(35, 35, 35, 0.35);
+            border-left: 1px solid white;
+            border-bottom: 1px solid white;
+            overflow: hidden;
+        }
+
+        .it-counter {
+            position: absolute;
+            left: 5%;
+            right: 5%;
+            bottom: 6%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 15px;
+        }
+        #control-panel, #fill-panel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: 200px;
+            height: 160px;
+            z-index: 99;
+            border-radius: 18px;
+            background: rgba(30, 30, 30, 0.25);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        #speed       { top: 15px; left: 20px; }
+        #speed-up    { top: 15px; left: 90px; }
+        #speed-down  { top: 15px; left: 150px;}
+        #running     { top: 55px; left: 30px; }
+        #restart     { top: 55px; left: 90px; }
+        #reset       { top: 55px; left: 150px;}
+        #step        { top: 100px; left: 20px;}
+
+        #fill1       { top: 15px; left: 20px; }
+        #fill2       { top: 15px; left: 85px; }
+        #fill3       { top: 15px; left: 150px;}
+        #fill4       { top: 60px; left: 20px; }
+        #fill5       { top: 60px; left: 85px; }
+        #fill6       { top: 60px; left: 150px; }
+        #fill7       { top: 105px; left: 20px; }
+        #fill8       { top: 105px; left: 85px; }
+        #fill9       { top: 105px; left: 150px; }
+    </style>
+</head>
+<body>
+<div id="control-panel">
+    <div id="speed"        class="controls">8</div>
+    <div id="speed-up"     class="controls">+</div>
+    <div id="speed-down"   class="controls">-</div>
+    <div id="running"      class="controls">=</div>
+    <div id="restart"      class="controls">↻</div>
+    <div id="reset"        class="controls">o</div>
+    <div id="step"         class="controls">step 1x</div>
+</div>
+
+<div id="fill-panel" style="top: 200px">
+    <div id="fill1" class="controls" onclick="view=create(1);">1</div>
+    <div id="fill2" class="controls" onclick="view=create(2);">2</div>
+    <div id="fill3" class="controls" onclick="view=create(3);">3</div>
+    <div id="fill4" class="controls" onclick="view=create(4);">4</div>
+    <div id="fill5" class="controls" onclick="view=create(5);">5</div>
+    <div id="fill6" class="controls" onclick="view=create(6);">6</div>
+    <div id="fill7" class="controls" onclick="view=create(7);">7</div>
+    <div id="fill8" class="controls" onclick="view=create(8);">8</div>
+    <div id="fill9" class="controls" onclick="view=create(9);">9</div>
+</div>
+
+<div id="app-container"></div>
+<div id="stats" class="stats-window">
+    <div id="graph" class="graph">
+
+    </div>
+    <div class="it-counter">
+        <span>iterations:</span>
+        <span id="counter">0</span>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay" style="z-index: 9999; position: absolute;">
+    <div class="settings-panel" id="settings-panel" style="z-index: 9999; position: absolute;">
+        <h2 style="text-align: center">CONWAYS GAME OF LIFE</h2>
+        <p style="text-align: center">--- click to continue ---</p>
+    </div>
+</div>
+<script>
+    //prefs
+    let prefs = JSON.parse(localStorage.getItem("preferences"));
+    if (!prefs) prefs = {
+            autopause: true,
+            statsize:  500,
+            dostats:   true,
+        };
+    function save_prefs() {localStorage.setItem("preferences", JSON.stringify(prefs));}
+    function apply_prefs() {let stats = Array(prefs.statsize).fill(0);}
+    apply_prefs();
+    function open_prefs() {
+        const settings = document.createElement("div");
+        settings.classList = ["modal-overlay","settings-panel"];
+        settings.innerHTML = ``;
+    }
+
+    //rendering
+    const fsize = 20;
+    const gz = getGlyphSize(fsize);
+    const dims = [Math.trunc(window.innerHeight/gz[0]-1), Math.trunc(window.innerWidth/gz[1])];
+    let view = create(1);
+    const c=document.getElementById("modal-overlay");c.addEventListener("click", (e) => {e.stopPropagation();c.remove();running=!running;iteration=0;counter.innerText=0;});
+
+    //game
+    let running = true;
+    let speed = 100;
+    let ticks = false;
+    let iteration = 0;
+    const counter = document.getElementById("counter");
+    stats = Array(prefs.statsize).fill(0);
+
+    increaseSpeed(1,"*");
+
+    Object.defineProperties(Array.prototype, {
+        count: {
+            value: function(value) {
+                return this.filter(x => x==value).length;
+            }
+        }
+    });
+
+    function getGlyphSize(font) {
+        const s = document.createElement("span");
+        s.textContent = "██";
+        s.style.font = font+"px monospace";
+        document.body.appendChild(s);
+        const rect = s.getBoundingClientRect();
+        s.remove()
+        return [rect.height, rect.width];
+    }
+
+    function create(pattern) {
+        const screen = Array(dims[0]).fill(null).map(()=>Array(dims[1]).fill("  "));
+        if (!pattern) return screen;
+        const p = Math.trunc(dims[0]/2);
+        const q = Math.trunc(dims[1]/2)
+        if (pattern===1) {
+            for (let y = p - 5; y < p + 1; y++) for (let x = q - 4; x < q - 2; x++) screen[y][x] = "██";
+            for (let y = p - 2; y < p + 4; y++) for (let x = q + 3; x < q + 5; x++) screen[y][x] = "██";
+            for (let y = p + 2; y < p + 4; y++) for (let x = q - 4; x < q + 2; x++) screen[y][x] = "██";
+            for (let y = p - 5; y < p - 3; y++) for (let x = q - 1; x < q + 5; x++) screen[y][x] = "██";
+            return screen;
+        }
+        if (pattern===2) {
+            return screen.map(r => r.map(() => Math.random() < 0.2 ? "██" : "  "));
+        }
+        if (pattern===3) {
+            screen[p+1][q-1] = "██";
+            screen[p  ][q-1] = "██";
+            screen[p-1][q-1] = "██";
+            screen[p+1][q  ] = "██";
+            screen[p+1][q+1] = "██";
+            screen[p  ][q+1] = "██";
+            screen[p-1][q+1] = "██";
+            return screen
+        }
+        if (pattern===4) {
+            for (let i=-20; i<20; i++) {
+                screen[p][q+i] = "██";
+                screen[p+1][q+i] = "██";
+            }
+            return screen;
+        }
+        if (pattern===5) {
+            const glider = [[1,1,1],[1,0,0],[0,1,0]];
+            for (let i=0; i<3; i++) {
+                for(let j=0; j<3; j++) {
+                    const d = 7;
+                    screen[p + i + d][q + j + d] = glider[i][j] ? "██" : "  ";
+                    screen[p - i - d][q + j + d] = glider[i][j] ? "██" : "  ";
+                    screen[p + i + d][q - j - d] = glider[i][j] ? "██" : "  ";
+                    screen[p - i - d][q - j - d] = glider[i][j] ? "██" : "  ";
+                }
+            }
+            return screen;
+        }
+        if (pattern===6) {
+            for (let y=0; y<screen.length; y++) {
+                for (let x=0; x<screen[0].length; x++) {
+                    screen[y][x] = (x+y)%2 ? "██" : "  ";
+                }
+            }
+            return screen;
+        }
+        if (pattern===7) {
+            for (let y=0; y<screen.length; y++) {
+                for (let x=0; x<screen[0].length; x++) {
+                    screen[y][x] = !!((x*y)%3) ? "██" : "  ";
+                }
+            }
+            return screen;
+        }
+        if (pattern===8) {
+            const fill = [
+                ['  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  '], 
+                ['  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','  ','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  '], 
+                ['  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','██','  ','  ','  ','  ','  ','  ','██','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','██'], 
+                ['  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','  ','  ','  ','██','  ','  ','  ','  ','██','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','██'], 
+                ['██','██','  ','  ','  ','  ','  ','  ','  ','  ','██','  ','  ','  ','  ','  ','██','  ','  ','  ','██','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  '], 
+                ['██','██','  ','  ','  ','  ','  ','  ','  ','  ','██','  ','  ','  ','██','  ','██','██','  ','  ','  ','  ','██','  ','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  '],
+                ['  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','  ','  ','  ','  ','  ','██','  ','  ','  ','  ','  ','  ','  ','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  '], 
+                ['  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','  ','  ','  ','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  '], 
+                ['  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ']];
+            console.log(fill);
+            const r = fill.length;
+            const s = fill[0].length;
+            for (let y=0; y<r; y++) {
+                for (let x=0; x<s; x++) {
+                    screen[p-r-1+y][q-s-1+x] = fill[r-y-1][s-x-1];
+                    screen[p-r-1+y][q+s+1-x] = fill[r-y-1][s-x-1];
+                    screen[p+r+1-y][q-s-1+x] = fill[r-y-1][s-x-1];
+                    screen[p+r+1-y][q+s+1-x] = fill[r-y-1][s-x-1];
+                }
+            }
+            return screen;
+        }
+        if (pattern===9) {
+            for (let i=-1; i<2; i+=2) {
+                screen[p+3][q+0*1] = "██";
+                screen[p+2][q+1*i] = "██";
+                screen[p+1][q+2*i] = "██";
+                screen[p+0][q+3*i] = "██";
+                screen[p-1][q+3*i] = "██";
+                screen[p-2][q+2*i] = "██";
+                screen[p-2][q+1*i] = "██";
+                screen[p-1][q+0*i] = "██";
+            }
+            return screen;
+        }
+    }
+
+    document.body.style.font = fsize+"px monospace";
+    function render() {document.getElementById("app-container").innerHTML = ` <pre>${view.map(r=>r.join("")).join("\n")}</pre> `;}
+    render();
+
+    function increaseSpeed(v,o){speed=Math.max(o==="*"?speed*v:1/(1/speed+v/1000),1);const v2=Math.trunc(1000/speed).toString();const w=gz[0]*Math.max(2,v2.length-1);document.getElementById("speed").innerHTML = v2;document.getElementById("speed-up").style.left=(40+w)+"px";document.getElementById("speed-down").style.left=(150)+"px"}
+    document.getElementById("running").addEventListener("click", (e) => {
+        e.stopPropagation();
+        running = !running;
+        document.getElementById("running").innerHTML = running?">":"=";
+    })
+    document.getElementById("speed-up").addEventListener("click", (e) => {
+        e.stopPropagation();
+        increaseSpeed(1, "+");
+    })
+    document.getElementById("speed-down").addEventListener("click", (e) => {
+        e.stopPropagation()
+        increaseSpeed(-1, "+");
+    })
+    document.getElementById("restart").addEventListener("click", (e) => {
+        e.stopPropagation();
+        view = create(1);
+        render();
+    })
+    document.getElementById("reset").addEventListener("click", (e) => {
+        e.stopPropagation();
+        view = create(false);
+        render();
+    })
+    document.getElementById("step").addEventListener("click", (e) => {
+        e.stopPropagation();
+        ticks=true;
+    })
+    document.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        increaseSpeed(1+Math.sign(e.deltaY)/10, "*");
+    }, {passive: false});
+    document.addEventListener("keydown", () => {
+        running = !running;
+        document.getElementById("running").innerHTML = running?">":"=";
+    })
+    document.addEventListener("click", (e) => {
+        const pos = [Math.trunc(e.pageY/gz[0]-1),Math.trunc(e.pageX/gz[1]-.25)];
+        if (pos[0]<0||pos[1]<0) return;
+        view[pos[0]][pos[1]] = view[pos[0]][pos[1]]==="  "?"██":"  ";
+        render();
+    })
+    counter.addEventListener("click", (e) => {
+        e.stopPropagation();
+        iteration=0;counter.innerText=0;
+    })
+
+
+    function tick() {
+        if (running||ticks) {
+        iteration++; counter.innerText = iteration;
+        const view_ = view.map(row => [...row]);
+        for (let y=0; y<dims[0]; y++) {
+            for (let x = 0; x < dims[1]; x++) {
+                let alive_neighbors = 0;
+                for (let oy = -1; oy < 2; oy++) {
+                    for (let ox = -1; ox < 2; ox++) {
+                        if (!ox && !oy) continue;
+                        if (x+ox<0 || x+ox>dims[1]-1) continue;
+                        if (y+oy<0 || y+oy>dims[0]-1) continue;
+                        if (view[y + oy][x + ox]==="██") alive_neighbors++;
+                    }
+                }
+                if (alive_neighbors<2) view_[y][x] = "  ";
+                else if (alive_neighbors>3) view_[y][x] = "  ";
+                else if (view[y][x]==="  " && alive_neighbors===3) view_[y][x] = "██";
+            }
+        }
+        // check if dead
+        if (prefs.autopause)
+        if (JSON.stringify(view) === JSON.stringify(view_)) {
+            running=false;
+            document.getElementById("running").innerHTML = "=";
+        }
+        // do stats
+        if (prefs.dostats)
+        calculate_stats(view_.flat().count("██"));
+
+        view = view_;
+        render();
+        }
+        if (ticks) ticks=!ticks;
+        setTimeout(tick, speed);
+    }
+    tick();
+
+    function calculate_stats(v) {
+        stats.pop();
+        stats.unshift(v);
+
+        const fsize2 = 2;
+        const g = document.getElementById("graph");
+        g.style.font = fsize2+"px monospace";
+        const gz2 = getGlyphSize(fsize2);
+
+        const gd = g.getClientRects()[0];
+        const gy = Math.trunc(gd.height/gz2[0]);
+        const gx = Math.trunc(gd.width/gz2[1]);
+        const graphscreen = Array(gy).fill(null).map(() => Array(gx).fill(".."));
+
+        const maxcells = Math.max(...stats,1);
+        for (let x=0; x<stats.length; x++) {
+            const y_ = graphscreen.length-1-Math.trunc((graphscreen.length-1) * (stats[x] / maxcells));
+            const x_ = Math.trunc(x*(graphscreen[0].length-1)/stats.length);
+            graphscreen[y_][x_] = "██";
+        }
+        document.getElementById("graph").innerHTML = "<pre>" + graphscreen.map(r => r.join("")).join("\n") + "</pre>";}
+</script>
+</body>
+</html>

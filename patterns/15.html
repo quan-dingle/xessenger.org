@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pattern - 15</title>
+    <style>
+        body {
+            font-family: monospace;
+            color: #FFF;
+            background: #000;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+
+<script>
+    const fsize = 25;
+    const dims = [Math.trunc(window.innerHeight/getGlyphSize()[0]-1), Math.trunc(window.innerWidth/getGlyphSize()[1])];
+
+    function getGlyphSize() {
+        const s = document.createElement("span");
+        s.textContent = "W";
+        s.style.font = fsize+"px monospace";
+        document.body.appendChild(s);
+        const rect = s.getBoundingClientRect();
+        s.remove()
+        return [rect.height, rect.width];
+    }
+
+    function create() {
+        const screen = Array(dims[0]).fill(null).map(()=>Array(dims[1]).fill(" "));
+
+        for (let y = 1; y < dims[0]; y++) {
+            for (let x = 0; x < dims[1]; x++) {
+                screen[y][x] = Math.random()>.99?1:screen[y-1][x]===1&&Math.random()>.2?1:" ";
+            }
+        }
+        return screen;
+    }
+
+    let view = create();
+    document.body.style.font = fsize+"px monospace";
+    function render() {document.body.innerHTML = ` <pre>${view.map(r=>r.join("")).join("\n")}</pre> `;}
+
+    setInterval(() => {
+        render();
+
+        const tmp = view.pop();
+        const nl = Array.from({ length: dims[1] }, (_, i) =>
+            tmp[i] === 1
+                ? (Math.random() > 0.2 ? 1 : " ")
+                : (Math.random() > 0.99 ? 1 : " ")
+        );
+        view.unshift(nl);
+    }, 25);
+
+
+
+</script>
+</body>
+</html>

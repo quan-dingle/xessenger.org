@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pattern - 11</title>
+    <style>
+        body {
+            font-family: monospace;
+            color: #FFF;
+            background: #000;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+
+<script>
+    let fsize = 5;
+    let offx = 0;
+    let offy = 0;
+
+    function getGlyphSize() {
+        const s = document.createElement("span");
+        s.textContent = "W";
+        s.style.font = fsize+"px monospace";
+        document.body.appendChild(s);
+        const rect = s.getBoundingClientRect();
+        s.remove()
+        return [rect.height, rect.width];
+    }
+
+    function create() {
+        const dims = [Math.trunc(window.innerHeight/getGlyphSize()[0]-1), Math.trunc(window.innerWidth/getGlyphSize()[1])];
+        const screen = Array(dims[0]).fill(null).map(()=>Array(dims[1]).fill("#"));
+
+        for (let y = 0; y < dims[0]; y++) {
+            for (let x = 0; x < dims[1]; x++) {
+                const x_ = Math.trunc(.5*(x+y-offy))+offx;
+                const y_ = dims[0]-y+offy;
+                if (x_&y_) screen[y][x] = " ";
+            }
+        }
+        return screen;
+    }
+
+    function render() {document.body.style.font = fsize+"px monospace";document.body.innerHTML = ` <pre>${create().map(r=>r.join("")).join("\n")}</pre> `;}
+    render();
+    document.addEventListener("wheel", (e) => {
+        if (e.ctrlKey) {
+            e.preventDefault();
+            fsize *= e.deltaY > 0 ? 0.9 : 1.1;
+            fsize = Math.max(1, Math.min(100, fsize));
+            render();
+            return;
+        }
+        const s = 10;
+
+        if (e.shiftKey) offx += s*Math.sign(e.deltaX || e.deltaY);
+        else offy += s*Math.sign(e.deltaY);
+
+        render();
+    }, { passive: false });
+</script>
+</body>
+</html>

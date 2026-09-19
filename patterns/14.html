@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pattern - 14</title>
+    <style>
+        body {
+            font-family: monospace;
+            color: #FFF;
+            background: #000;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+
+<script>
+    const fsize = 10;
+    const dims = [Math.trunc(window.innerHeight/getGlyphSize()[0]-1), Math.trunc(window.innerWidth/getGlyphSize()[1])];
+
+    let offx = -dims[1]/4;
+    let offy = -dims[0]/2;
+    let zoom = .2;
+
+    function getGlyphSize() {
+        const s = document.createElement("span");
+        s.textContent = "W";
+        s.style.font = fsize+"px monospace";
+        document.body.appendChild(s);
+        const rect = s.getBoundingClientRect();
+        s.remove()
+        return [rect.height, rect.width];
+    }
+
+    function create() {
+        const screen = Array(dims[0]).fill(null).map(()=>Array(dims[1]).fill(" "));
+
+        for (let y = 0; y < dims[0]; y++) {
+            for (let x = 0; x < dims[1]; x++) {
+                const x_ = zoom*(.5*x+offx);
+                const y_ = zoom*(y+offy);
+
+                //circle
+                const oxC = -3;
+                const oyC = 0;
+                const rsq = 10;
+                const wC = 1;
+                if (Math.abs((x_-oxC)**2+(y_-oyC)**2-rsq)<wC) screen[y][x] = "█";
+
+                //bell curve
+                const oxB = 5;
+                const oyB = 5;
+                const sxB = .2;
+                const syB = 5;
+                const wB = .1; // main thing --v
+                if (Math.abs(Math.exp(0-sxB*(x_-oxB)**2)*syB+y_-oyB)<2*wB && x_<oxB+5&&x_>oxB-5) screen[y][x] = "█";
+                if (Math.abs(y_-oyB)<wB &&x_<oxB+6&&x_>oxB-6) screen[y][x] = "█"; // x-axis
+                if (Math.abs(x_-oxB)<wB/2 &&y_<oyB+3&&y_>oyB-7) screen[y][x] = "█"; // y-axis
+
+                //pentagram
+                const oxP = -12;
+                const oyP = -5;
+                const rP = 5;
+                const dx = x_ - oxP;
+                const dy = y_ - oyP;
+
+                const angle = Math.atan2(dy, dx) + Math.PI;
+                const dist  = Math.hypot(dx, dy);
+                const sector = (2 * Math.PI) / 5;
+                let a = Math.abs((angle % sector) - sector / 2);
+
+                if (a < (dist-2)**.5/2.5 && dist < rP) screen[y][x] = "█";
+                //if (Math.abs()<wP) screen[y][x] = "█"; ... didnt make it
+                // fucking edges --^ this shit was NOT easy (saying this while im not even done yet)
+
+                //flower
+                const oxF = 12;
+                const oyF = -5;
+                if (Math.abs((Math.atan2((x_-oxF),(y_-oyF))+Math.PI)%(Math.PI/3))> ((x_-oxF)**2+(y_-oyF)**2-rP)/20)  screen[y][x] = "█";
+
+                //weed
+                const oxw = 24;
+                const oyw = 5;
+                if (Math.abs((Math.atan2((x_-oxw),(y_-oyw)))%(Math.PI/4.75)) > ((x_-oxw)**2+(y_-oyw)**2-rP)/20)  screen[y][x] = "█";
+
+                // fan
+                const oxf = -12;
+                const oyf = 5;
+                if (Math.abs((Math.atan2((x_-oxf),(y_-oyf))+Math.PI)%(Math.PI/2.5))>.5 && Math.abs((x_-oxf)**2+(y_-oyf)**2-rP)<.2)  screen[y][x] = "█";
+                if (Math.abs((Math.atan2((x_-oxf),(y_-oyf))+Math.PI*1.2)%(Math.PI/2.5)) > ((x_-oxf)**2+(y_-oyf)**2)/rP)  screen[y][x] = "█";
+
+            }
+        }
+        return screen;
+    }
+
+    function render() {document.body.style.font = fsize+"px monospace";document.body.innerHTML = ` <pre>${create().map(r=>r.join("")).join("\n")}</pre> `;}
+    render();
+    document.addEventListener("wheel", (e) => {
+        if (e.ctrlKey) {
+            e.preventDefault();
+            zoom *= e.deltaY > 0 ? 0.9 : 1.1;
+            //zoom = Math.max(1, Math.min(100, fsize));
+            render();
+            return;
+        }
+        const s = 10;
+
+        if (e.shiftKey) offx += s*Math.sign(e.deltaX || e.deltaY);
+        else offy += s*Math.sign(e.deltaY);
+
+        render();
+    }, { passive: false });
+</script>
+</body>
+</html>

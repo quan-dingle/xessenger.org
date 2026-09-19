@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pattern - 17</title>
+    <style>
+        body {
+            font-family: monospace;
+            color: #FFF;
+            background: #000;
+            overflow: hidden;
+            cursor: pointer;
+            user-select: none;
+        }
+        input {
+            font-family: monospace;
+            color: #FFF;
+            padding: 6px 10px;
+            border-radius: 10px;
+            background: rgba(35, 35, 35, 0.35);
+            border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+            outline: none;
+            user-select: text;
+        }
+        input:focus {
+            border: 1px solid rgba(255,255,255,0.25);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 2px rgba(255,255,255,0.08);
+        }
+        .controls {
+            position: absolute;
+            user-select: none;
+            z-index: 10000;
+            font-size: 35px;
+        }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 999999;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+        }
+        #app-container {pointer-events: none}
+        .settings-panel {
+            width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+
+            padding: 24px;
+            border-radius: 20px;
+
+            background: rgba(35, 35, 35, 0.15);
+            backdrop-filter: blur(16px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        .stats-window {
+            background: rgba(35, 35, 35, 0.5);
+            position:absolute;
+            z-index: 100;
+            right:0;
+            top: 0;
+            width: 350px;
+            height: 175px;
+        }
+        .graph {
+            position: absolute;
+            top: 5%;
+            left: 5%;
+            width: 90%;
+            height: 70%;
+            background: rgba(35, 35, 35, 0.35);
+            border-left: 1px solid white;
+            border-bottom: 1px solid white;
+            overflow: hidden;
+        }
+
+        .it-counter {
+            position: absolute;
+            left: 5%;
+            right: 5%;
+            bottom: 6%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 15px;
+        }
+        #alive-cells {
+            position: absolute;
+            right: 96%;
+            top: 5%;
+            display: flex;
+            justify-content: right;
+            align-items: center;
+            font-size: 5px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(1px);
+        }
+        #peak-cells, #valley-cells {
+            position: absolute;
+            left: 6%;
+            top: 3%;
+            display: flex;
+            justify-content: right;
+            align-items: center;
+            font-size: 5px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(1px);
+        }
+        #valley-cells {top: 75%;}
+        #control-panel, #fill-panel, #custom-panel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: 200px;
+            height: 160px;
+            z-index: 99;
+            border-radius: 18px;
+            background: rgba(30, 30, 30, 0.25);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        #speed       { top: 15px; left: 20px; }
+        #speed-up    { top: 15px; left: 90px; }
+        #speed-down  { top: 15px; left: 150px;}
+        #running     { top: 55px; left: 30px; }
+        #restart     { top: 55px; left: 90px; }
+        #reset       { top: 55px; left: 150px;}
+        #step        { top: 100px; left: 20px;}
+
+        #fill1       { top: 15px; left: 20px; }
+        #fill2       { top: 15px; left: 85px; }
+        #fill3       { top: 15px; left: 150px;}
+        #fill4       { top: 60px; left: 20px; }
+        #fill5       { top: 60px; left: 85px; }
+        #fill6       { top: 60px; left: 150px; }
+        #fill7       { top: 105px; left: 20px; }
+        #fill8       { top: 105px; left: 85px; }
+        #fill9       { top: 105px; left: 150px; }
+
+        #paste       { top: 15px; left: 15px; }
+        #copy        { top: 15px; left: 105px; }
+        #import       { top: 55px; left: 15px; }
+        .customs {border: 1px solid rgba(255,255,255,0.08); font-size: 25px; border-radius: 8px; align-content: center; text-align: center; }
+    </style>
+</head>
+<body>
+<div id="control-panel">
+    <div id="speed"        class="controls">8</div>
+    <div id="speed-up"     class="controls">+</div>
+    <div id="speed-down"   class="controls">-</div>
+    <div id="running"      class="controls">=</div>
+    <div id="restart"      class="controls">↻</div>
+    <div id="reset"        class="controls">o</div>
+    <div id="step"         class="controls">step 1x</div>
+</div>
+
+<div id="fill-panel" style="top: 200px">
+    <div id="fill1" class="controls" onclick="view=create(1);">1</div>
+    <div id="fill2" class="controls" onclick="view=create(2);">2</div>
+    <div id="fill3" class="controls" onclick="view=create(3);">3</div>
+    <div id="fill4" class="controls" onclick="view=create(4);">4</div>
+    <div id="fill5" class="controls" onclick="view=create(5);">5</div>
+    <div id="fill6" class="controls" onclick="view=create(6);">6</div>
+    <div id="fill7" class="controls" onclick="view=create(7);">7</div>
+    <div id="fill8" class="controls" onclick="view=create(8);">8</div>
+    <div id="fill9" class="controls" onclick="view=create(9);">9</div>
+</div>
+
+<div id="custom-panel" style="top: 400px; align-items: center; justify-content: center; height: 100px;">
+    <div id="paste" class="controls customs" style="width: 80px" onclick="view=copy;">paste</div>
+    <div id="copy"  class="controls customs" style="width: 80px" onclick="copy=new Set(view.values());">copy</div>
+    <div id="import" class="controls customs" style="width: 170px" onclick="import_map()">import</div>
+</div>
+
+<div id="app-container"></div>
+<div id="stats" class="stats-window">
+    <div id="graph" class="graph">
+
+    </div>
+    <div class="it-counter">
+        <span>iterations:</span>
+        <span id="counter">0</span>
+    </div>
+    <div id="alive-cells">
+        <span id="score">0</span>
+    </div>
+    <div id="peak-cells">
+        <span id="highScore">0</span>
+    </div>
+    <div id="valley-cells">
+        <span id="lowScore">0</span>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay" style="z-index: 9999; position: absolute;">
+    <div class="settings-panel" id="settings-panel" style="z-index: 9999; position: absolute;">
+        <h2 style="text-align: center">CONWAYS GAME OF LIFE</h2>
+        <p style="text-align: center">--- click to continue ---</p>
+    </div>
+</div>
+<script>
+    /*
+    TODO:
+    - dissect into chunks, check if chunks are mutating or still
+    - async sim/rendering
+    - prefs          [DONE]
+    - ui scaling     [in progress]
+    - reset to build [DONE]
+     */
+    //prefs
+    function load_prefs() {
+        let prefs = JSON.parse(localStorage.getItem("preferences"));
+        if (!prefs) prefs = {
+            autopause: true,
+            statSize:  500,
+            doStats:   true,
+        };
+        return prefs;
+    }
+    let prefs = load_prefs();
+    let stats = Array(prefs.statSize).fill(0);
+    function save_prefs() {localStorage.setItem("preferences", JSON.stringify(prefs));}
+    function apply_prefs() {
+        stats = Array(prefs.statSize).fill(0);
+        document.getElementById("stats").style.visibility = prefs.doStats?"visible":"hidden";
+    }
+    apply_prefs();
+    function open_prefs() {
+        const settings = document.createElement("div");
+        settings.className = "modal-overlay";
+        const settings_container = document.createElement("div");
+        settings_container.className = "settings-panel";
+        settings.appendChild(settings_container);
+        settings.id = "settings-panel";
+        settings_container.innerHTML = `
+            <label>
+                auto-pause:
+                <input type="checkbox" id="pref-autopause" ${prefs.autopause ? "checked" : ""}>
+            </label><br>
+            <label>
+                stat size:
+                <input type="number" id="pref-statSize" value="${prefs.statSize}">
+            </label><br>
+            <label>
+                do stats:
+                <input type="checkbox" id="pref-doStats" ${prefs.doStats ? "checked" : ""}>
+            </label><br>
+        `;
+        settings.style.zIndex = "9999999999999";
+        settings_container.style.width = "auto";
+
+        const close_btn  = document.createElement("button");
+        close_btn.id = "close-btn";
+        close_btn.innerHTML = "Save & Close";
+        close_btn.addEventListener("click", () => {close_prefs()})
+        document.body.appendChild(settings);
+        settings_container.appendChild(close_btn);
+    }
+    function close_prefs() {
+        prefs.autopause = document.getElementById("pref-autopause").checked;
+        prefs.statSize  = parseInt(document.getElementById("pref-statSize").value);
+        prefs.doStats   = document.getElementById("pref-doStats").checked;
+
+        save_prefs();
+        apply_prefs();
+
+        const settings = document.getElementById("settings-panel");
+        settings.remove();
+    }
+
+    //rendering
+    let offset_x = 0;
+    let offset_y = 0;
+    const fontSize = 10;
+    let gz = getGlyphSize(fontSize);
+    let dims = [Math.trunc(window.innerHeight/gz[0]-1), Math.trunc(window.innerWidth/gz[1])];
+    const c=document.getElementById("modal-overlay");c.addEventListener("click", (e) => {e.stopPropagation();c.remove();running=!running;iteration=0;counter.innerText="0";});
+
+    //game
+    let save = new Set();
+    let view = create(1);
+    let copy = new Set();
+    let running = true;
+    let speed = 100;
+    let ticks = false;
+    let iteration = 0;
+    const counter = document.getElementById("counter");
+
+    increaseSpeed(1,"*");
+
+    function setHas(set, item) {return set.has(`${item.toString()}`);}
+    function setAdd(set, item) {return set.add(`${item.toString()}`);}
+    function setRem(set, item) {set.delete(`${item.toString()}`);}
+    function toPoint(coord) {const p = coord.split(",");return [Number(p[0]), Number(p[1])]}
+
+    function getGlyphSize(font) {
+        const s = document.createElement("span");
+        s.textContent = "██";
+        s.style.font = font+"px monospace";
+        document.body.appendChild(s);
+        const rect = s.getBoundingClientRect();
+        s.remove();
+        return [rect.height, rect.width];
+    }
+
+    function create(pattern) {
+        const view = new Set();
+
+        if (!pattern) return view;
+
+        const p = Math.trunc(dims[0] / 2) - offset_y;
+        const q = Math.trunc(dims[1] / 2) - offset_x;
+
+        const put = (y, x) => setAdd(view, [y, x]);
+
+        // ring
+        if (pattern === 1) {
+            for (let y = p - 5; y < p + 1; y++)
+                for (let x = q - 4; x < q - 2; x++)
+                    put(y, x);
+
+            for (let y = p - 2; y < p + 4; y++)
+                for (let x = q + 3; x < q + 5; x++)
+                    put(y, x);
+
+            for (let y = p + 2; y < p + 4; y++)
+                for (let x = q - 4; x < q + 2; x++)
+                    put(y, x);
+
+            for (let y = p - 5; y < p - 3; y++)
+                for (let x = q - 1; x < q + 5; x++)
+                    put(y, x);
+        }
+
+        // entropy
+        else if (pattern === 2) {
+            for (let y = 0; y < dims[0]; y++) {
+                for (let x = 0; x < dims[1]; x++) {
+                    if (Math.random() < 0.2)
+                        put(y-offset_y, x-offset_x);
+                }
+            }
+        }
+
+        // r-pentomino
+        else if (pattern === 3) {
+            put(p - 1, q);
+
+            put(p    , q);
+            put(p    , q + 1);
+
+            put(p + 1, q);
+            put(p + 1, q - 1);
+        }
+
+        // space filler
+        else if (pattern === 4) {
+            [[-1, -3], [5, 2], [8, -2], [-6, 3], [0, 7], [-5, -4], [-1, 4], [2, 0], [1, 0], [3, 3], [6, 4], [9, -8], [-6, -11], [6, 11], [6, -3], [-8, 2], [-5, -8], [0, -2], [-10, 6], [-13, 5], [-6, 10], [10, -3], [-3, -9], [-12, 4], [-9, 1], [-1, -12], [11, -7], [-10, 3], [-8, 4], [10, -6], [-1, 0], [-2, 11], [-11, -1], [-7, 6], [7, -6], [2, 4], [-7, 4], [-10, 9], [-1, -6], [-8, 6], [11, -6], [8, -11], [-9, 8], [8, -8], [2, -2], [-5, 11], [9, 3], [-10, 1], [2, -12], [4, 7], [-8, 11], [1, -13], [-4, -13], [1, -6], [5, 8], [6, 13], [5, 4], [3, 8], [7, 1], [12, -4], [6, 12], [0, 6], [3, -2], [10, -2], [0, 0], [-1, 13], [-2, 0], [6, -11], [6, -7], [-6, 7], [11, 1], [-6, -4], [1, -9], [3, 9], [-11, 6], [1, 9], [0, -13], [2, 6], [5, 9], [9, -3], [7, -10], [4, 0], [0, -6], [-2, -2], [0, 2], [-2, -4], [-5, -13], [1, 12], [2, -11], [2, 2], [-9, 3], [9, -6], [1, -8], [-8, -3], [4, 6], [-2, 12], [-3, -3], [8, -6], [-4, -7], [-5, -3], [-3, -8], [-1, 6], [-1, 8], [1, 8], [-10, 8], [2, -13], [-2, 13], [6, -9], [11, 0], [1, 6], [7, -4], [-6, -10], [-1, -9], [5, 0], [0, 13], [-7, 10], [10, -9], [13, -5], [-2, 10], [-9, -3], [5, 6], [-10, 2], [-8, 10], [-3, 0], [10, -1], [5, 13], [-5, 0], [-3, 3], [-12, 6], [3, 6], [11, -1], [-5, -9], [-6, 11], [12, -5], [-5, -6], [8, -4], [-5, 1], [5, -1], [-4, -6], [5, -11], [-2, 2], [-7, -1], [-2, -6], [2, -10], [4, 13], [-6, 9], [-3, -6], [6, 10], [-6, -13], [-1, -8], [2, -4], [6, -10], [3, -3], [-1, 3], [-6, -2], [-4, 0], [1, 3], [10, -8], [-11, 7], [5, 3], [8, -10], [-5, -2], [8, 3], [7, -11], [-11, 1], [-1, 9], [-7, 11], [5, -12], [-8, 8], [1, -4], [-6, -12], [0, -7], [3, 0], [-3, -12], [-3, 2], [-9, 6], [-10, -2], [-2, 4], [12, -6], [1, -3], [-11, 0], [9, -1], [-12, 5], [-5, 12], [3, 12], [6, 2], [10, 2]]
+                .forEach(i=>put(i[0]+p,i[1]+q));
+        }
+
+        // gliders
+        else if (pattern === 5) {
+            const glider = [
+                [1,1,1],
+                [1,0,0],
+                [0,1,0]
+            ];
+
+            const d = 7;
+
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+
+                    if (!glider[i][j]) continue;
+
+                    put(p + i + d, q + j + d);
+                    put(p - i - d, q + j + d);
+                    put(p + i + d, q - j - d);
+                    put(p - i - d, q - j - d);
+                }
+            }
+        }
+
+        // acorn
+        else if (pattern === 6) {
+            const acorn = [
+                [0,1,0,0,0,0,0],
+                [0,0,0,1,0,0,0],
+                [1,1,0,0,1,1,1]
+            ]
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 7; j++) {
+                    if (!acorn[i][j]) continue;
+                    put(p + i, q + j);
+                }
+            }
+        }
+
+        // ladder thing
+        else if (pattern === 7) {
+            const cells = [8,1,5,3,3,6,7,1,5];
+            let t=0, l=Math.trunc(Math.sumPrecise(cells)/2)-q;
+            cells.forEach((v,j) => {
+                t += v;
+                if (j%2===0) {
+                    for (let i=0;i<v;i++) {
+                        put(p, t-i-l);
+                }}
+            });
+        }
+
+        // glider gun
+        else if (pattern===8) {
+            const fill = [
+                ['  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  '],
+                ['  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','  ','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  '],
+                ['  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','██','  ','  ','  ','  ','  ','  ','██','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','██'],
+                ['  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','  ','  ','  ','██','  ','  ','  ','  ','██','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','██'],
+                ['██','██','  ','  ','  ','  ','  ','  ','  ','  ','██','  ','  ','  ','  ','  ','██','  ','  ','  ','██','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  '],
+                ['██','██','  ','  ','  ','  ','  ','  ','  ','  ','██','  ','  ','  ','██','  ','██','██','  ','  ','  ','  ','██','  ','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  '],
+                ['  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','  ','  ','  ','  ','  ','██','  ','  ','  ','  ','  ','  ','  ','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  '],
+                ['  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','  ','  ','  ','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  '],
+                ['  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','██','██','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ','  ']];
+            const r = fill.length;
+            const s = fill[0].length;
+            for (let y = 0; y < r; y++) {
+                for (let x = 0; x < s; x++) {
+                    if (fill[y][x] !== "██") continue;
+
+                    put(p+y+1,q+x+1);
+                    put(p+y+1,q-x-1);
+                    put(p-y-1,q+x+1);
+                    put(p-y-1,q-x-1);
+                }
+            }
+        }
+
+        // <3
+        else if (pattern === 9) {
+            for (let i = -1; i <= 1; i += 2) {
+                put(p + 3, q);
+                put(p + 2, q + i);
+                put(p + 1, q + 2 * i);
+                put(p    , q + 3 * i);
+                put(p - 1, q + 3 * i);
+                put(p - 2, q + 2 * i);
+                put(p - 2, q + i);
+                put(p - 1, q);
+            }
+        }
+
+        save = view;
+        return view;
+    }
+
+    document.body.style.font = fontSize+"px monospace";
+    function render() {
+        let display = new Array(dims[0]).fill(null).map(_=>new Array(dims[1]).fill("  "));
+        for (const cell of view) {const cel_ = toPoint(cell);
+            const y = cel_[0] + offset_y;
+            const x = cel_[1] + offset_x;
+            if (y >= 0 && y < dims[0] && x >= 0 && x < dims[1]) display[cel_[0]+offset_y][cel_[1]+offset_x] = "██";}
+        document.getElementById("app-container").innerHTML = ` <pre>${display.map(line => line.join("")).join("\n")}</pre> `;
+    }
+    render();
+
+    function increaseSpeed(v,o){speed=Math.max(o==="*"?speed*v:1/(1/speed+v/1000),1);const v2=Math.trunc(1000/speed).toString();const w=gz[0]*Math.max(2,v2.length-1);document.getElementById("speed").innerHTML = v2;document.getElementById("speed-up").style.left=(40+w)+"px";document.getElementById("speed-down").style.left=(150)+"px"}
+    document.getElementById("running").addEventListener("click", (e) => {
+        e.stopPropagation();
+        running = !running;
+        document.getElementById("running").innerHTML = running?">":"=";
+    })
+    document.getElementById("speed-up").addEventListener("click", (e) => {
+        e.stopPropagation();
+        increaseSpeed(1, "+");
+    })
+    document.getElementById("speed-down").addEventListener("click", (e) => {
+        e.stopPropagation()
+        increaseSpeed(-1, "+");
+    })
+    document.getElementById("restart").addEventListener("click", (e) => {
+        e.stopPropagation();
+        view = save;
+        render();
+    })
+    document.getElementById("reset").addEventListener("click", (e) => {
+        e.stopPropagation();
+        view = create(false);
+        render();
+    })
+    document.getElementById("step").addEventListener("click", (e) => {
+        e.stopPropagation();
+        ticks=true;
+    })
+    document.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        // increaseSpeed(1+Math.sign(e.deltaY)/10, "*");
+        const s = 10;
+        if (e.shiftKey) offset_x += s*Math.sign(e.deltaX || e.deltaY);
+        else if (e.ctrlKey) zoom *= 1+(Math.sign(e.deltaX||e.deltaY)/10);
+        else offset_y -= s*Math.sign(e.deltaY);
+        render();
+    }, {passive: false});
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowUp") offset_y++;
+        else if (e.key === "ArrowDown") offset_y--;
+        else if (e.key === "ArrowLeft") offset_x++;
+        else if (e.key === "ArrowRight") offset_x--;
+        else if (e.key === " ") {
+            running = !running;
+            document.getElementById("running").innerHTML = running?">":"=";
+        }
+        else if (e.key === "Tab") {
+            e.preventDefault();
+            ticks = true;
+            running = false;
+        }
+        else if (Number(e.key)) view = create(Number(e.key));
+        else if (e.key === "+") increaseSpeed(0.9, "*");
+        else if (e.key === "-") increaseSpeed(1.1, "*");
+        else if (e.key === "Escape") {
+            const tmp = document.getElementById("settings-panel");
+            if (tmp) tmp.remove();
+            else open_prefs();
+        }
+        render();
+    })
+    document.getElementById("control-panel").addEventListener("click", e => {e.stopPropagation();render();});
+    document.getElementById("fill-panel").addEventListener("click", e => {e.stopPropagation();render();});
+    document.addEventListener("click", (e) => {
+        const pos = [Math.trunc(e.pageY/gz[0]-1)-offset_y,Math.trunc(e.pageX/gz[1]-.25)-offset_x];
+        setHas(view,[pos[0],pos[1]])?setRem(view,[pos[0],pos[1]]):setAdd(view,[pos[0],pos[1]]);
+        save = view;
+        render();
+    })
+    counter.addEventListener("click", (e) => {
+        e.stopPropagation();
+        iteration=0;counter.innerText="0";
+    })
+    window.addEventListener("resize", () => {
+        gz = getGlyphSize(fontSize);
+        let old_dims = [dims[0],dims[1]];
+        dims = [Math.trunc(window.innerHeight/gz[0]-1), Math.trunc(window.innerWidth/gz[1])];
+        offset_y -= Math.round((old_dims[0]-dims[0])/2);
+        offset_x -= Math.round((old_dims[1]-dims[1])/2);
+        render();
+    });
+
+
+    function tick() {
+        if (running||ticks) {
+        iteration++; counter.innerText = iteration;
+        const view_ = new Set();
+        const candidates = new Set();
+        view.forEach(v => {
+            const v_ = toPoint(v);
+            for (let y=-1; y<=1; y++)
+            for (let x=-1; x<=1; x++)
+            setAdd(candidates,[v_[0]+y,v_[1]+x]);
+        });
+        candidates.forEach(p => {
+            const [y,x] = toPoint(p);
+            let alive_cells = 0;
+            for (let i = -1; i <= 1; i++) {
+                for (let j = -1; j <= 1; j++) {
+                    if (!i && !j) continue
+                    if (setHas(view,[y + i, x + j])) alive_cells++;
+                }
+            }
+            if (alive_cells === 2 && setHas(view,[y,x])) setAdd(view_,[y,x])
+            if (alive_cells === 3) setAdd(view_,[y, x]);
+        });
+        // check if dead
+        if (prefs.autopause)
+        if (view.size === view_.size && [...view].every(x => view_.has(x))) {
+            running=false;
+            document.getElementById("running").innerHTML = "=";
+        }
+        // do stats
+        if (prefs.doStats)
+        calculate_stats(view_.size);
+
+        view = view_;
+        render();
+        }
+        if (ticks) ticks=!ticks;
+        setTimeout(tick, speed);
+    }
+    tick();
+
+    function calculate_stats(v) {
+        stats.pop();
+        stats.unshift(v);
+
+        //const zoomFactor = window.devicePixelRatio;
+        const fontSize2 = 2;//zoomFactor;
+        const g = document.getElementById("graph");
+        g.style.font = fontSize2+"px monospace";
+        const gz2 = getGlyphSize(fontSize2);
+
+        const gd = g.getClientRects()[0];
+        const gy = Math.trunc(gd.height/gz2[0]);
+        const gx = Math.trunc(gd.width/gz2[1]);
+        const graphScreen = Array(gy).fill(null).map(() => Array(gx).fill(".."));
+
+        const max_cells = Math.max(...stats,1);
+        const min_cells = Math.min(...stats);
+        const highScore_pos = stats.indexOf(max_cells);
+        const lowScore_pos = stats.indexOf(min_cells);
+        document.getElementById("highScore").innerHTML = " "+max_cells;
+        document.getElementById("peak-cells").style.left = 5+90*highScore_pos/stats.length+"%";
+        document.getElementById("lowScore").innerHTML = " "+min_cells;
+        document.getElementById("valley-cells").style.left = 5+90*lowScore_pos/stats.length+"%";
+        document.getElementById("valley-cells").style.top = 76-70*min_cells/max_cells+"%";
+        document.getElementById("score").innerHTML = v;
+        document.getElementById("alive-cells").style.top = 5+(70-70*(stats[0]/max_cells))+"%";
+
+        for (let x=0; x<stats.length; x++) {
+            const y_ = gy-1-Math.trunc((gy-1) * (stats[x] / max_cells));
+            const x_ = Math.trunc(x*(gx-1)/stats.length);
+            graphScreen[y_][x_] = "██";
+        }
+        document.getElementById("graph").innerHTML = "<pre>" + graphScreen.map(r => r.join("")).join("\n") + "</pre>";}
+
+    function import_map() {
+        const methods = ["By Function", "From Image", "From Set", "From Array"];
+        const method = "";
+        view = new Set();
+
+        if (method === "By Function") {
+            const generator = (y,x) => {return !!((x + y) % 2)};
+            let interval = [[-1000,1000],[-1000,1000]];
+            for (let y=interval[0][0]; y<interval[0][1]; y++)
+                for (let x=interval[1][0]; x<interval[1][1]; x++)
+                    if (generator(y,x)) view.add(y+","+x);
+        }
+        if (method === "From Image") {
+
+        }
+        if (method === "From Set") {
+            const input = "";
+            input.split(";").forEach(x=>{view.add(x)})
+        }
+        if (method === "From Array") {
+            const array = [[]];
+            const dims_ = [array.length,array[0].length];
+            const c_y = Math.trunc(dims[0]/2), c_x = Math.trunc(dims[1]/2);
+            for (let y=0; y<dims_[0]; y++)
+                for (let x=0; x<dims_[1]; x++)
+                    if (array[y][x]) view.add(y-c_y+","+x-c_x);
+        }
+    }
+</script>
+</body>
+</html>

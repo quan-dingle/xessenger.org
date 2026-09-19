@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pattern - 2</title>
+    <style>
+        body {
+            font-family: monospace;
+            color: #FFF;
+            background: #000;
+            font-size: 2px;
+        }
+    </style>
+</head>
+<body>
+
+<script>
+    function pRound(n) {return (Math.random()+Math.floor(n))>n?Math.floor(n):Math.ceil(n)}
+
+    function create() {
+        const chars = " .,-:+!?(@#█"
+        const screen = Array(500).fill(null).map(()=>Array(2000).fill("#"));
+
+        for (let y = 0; y < screen.length; y++) {
+            for (let x = 0; x < screen[0].length; x++) {
+                screen[y][x] = chars[5+pRound(2.5*(Math.sin(x/20)+Math.sin(y/10)))];
+            }
+        }
+        return screen;
+    }
+    function render() {
+        const bg = create();
+        document.body.innerHTML = ` <pre>${bg.map(r=>r.join("")).join("\n")}</pre> `;
+    }
+    render();
+</script>
+</body>
+</html>

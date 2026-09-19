@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pattern - 7</title>
+    <style>
+        body {
+            font-family: monospace;
+            color: #FFF;
+            background: #000;
+            font-size: 2px;
+        }
+    </style>
+</head>
+<body>
+
+<script>
+    document.zoom=0.67
+    function pRound(n) {return Math.random()+Math.trunc(n)>n?Math.floor(n):Math.ceil(n)}
+
+    function create() {
+        const dims = [900,2350];
+        const chars = " .-,:;(!?+@#█" //█
+        const screen = Array(dims[0]).fill(null).map(()=>Array(dims[1]).fill(" "));
+        const pi = 3.1415926535897932384626433832795028841;
+
+        for (let y = 0; y < screen.length; y++) {
+            for (let x = 0; x < screen[0].length; x+=.5) {
+                const sx = Math.sin(x/50);
+                const sy = Math.sin((y/50)%(2*pi)+sx-0.5);
+                screen[y][x] = chars[pRound(5+5*sy)];
+            }
+        }
+        return screen;
+    }
+    document.body.innerHTML = ` <pre>${create().map(r=>r.join("")).join("\n")}</pre> `;
+
+</script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pattern - 8</title>
+    <style>
+        body {
+            font-family: monospace;
+            color: #FFF;
+            background: #000;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+<script>
+    function pRound(n) {return Math.random()+Math.trunc(n)>n?Math.floor(n):Math.ceil(n)}
+
+    function create() {
+        const dims = [64,250];
+        const chars = " .-,:;(!?+i@wW##"; //█
+        const screen = Array(dims[0]).fill(null).map(()=>Array(dims[1]).fill(0));
+        const e = 2.718281828;
+
+        for (let i = .005; i < .05; i += .005) {     // width^-1
+            for (let j = 1; j < 4; j += .1) { // height
+                const bx = Math.random()*dims[1]; // center
+                const by = Math.random()*dims[0];
+                for (let y = 0; y < dims[0]; y++) {
+                    const sqdy = (by-y)**2;
+                    for (let x = 0; x < dims[1]; x += .5) {
+                        const d = (bx-x)**2+sqdy;
+                        const h = Math.exp(0-(d*i)**2)*j;
+                        screen[y][x] += h;
+                    }
+                }
+            }
+        }
+
+        return screen.map(line => line.map(n => chars[n>15?15:pRound(n)]));
+    }
+    document.body.innerHTML = ` <pre>${create().map(r=>r.join("")).join("\n")}</pre> `;
+
+</script>
+</body>
+</html>
