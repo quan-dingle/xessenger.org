@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>gravity</title>
+
+    <style>
+        :root {
+            --ui-bg: rgba(12, 12, 12, 0.52);
+            --ui-border: rgba(255, 255, 255, 0.11);
+            --ui-text: rgba(255, 255, 255, 0.82);
+            --ui-muted: rgba(255, 255, 255, 0.42);
+            --ui-hover: rgba(255, 255, 255, 0.08);
+            --ui-accent: #fff;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
+
+        body {
+            font-family: monospace;
+            color: #fff;
+            background: #000;
+            font-size: 14px;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #background {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        /* --------------------------------------------------
+           MENU BUTTON
+        -------------------------------------------------- */
+
+        #menuButton {
+            position: fixed;
+            top: 18px;
+            left: 18px;
+
+            width: 38px;
+            height: 38px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border: 1px solid var(--ui-border);
+            border-radius: 50%;
+
+            color: rgba(255, 255, 255, 0.72);
+            background: rgba(10, 10, 10, 0.28);
+
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+
+            cursor: pointer;
+
+            z-index: 20;
+
+            opacity: 1;
+            transform: scale(1);
+
+            transition: opacity 0.8s ease,
+            transform 0.8s ease,
+            background 0.2s ease;
+        }
+
+        #menuButton:hover {
+            background: rgba(255, 255, 255, 0.09);
+            color: #fff;
+        }
+
+        #menuButton.hidden {
+            opacity: 0;
+            transform: scale(0.82);
+            pointer-events: none;
+        }
+
+        #menuIcon {
+            font-size: 17px;
+            line-height: 1;
+            transition: transform 0.3s ease;
+        }
+
+        #menuButton.open #menuIcon {
+            transform: rotate(90deg);
+        }
+
+        /* --------------------------------------------------
+           CONTROL PANEL
+        -------------------------------------------------- */
+
+        #controls {
+            position: fixed;
+            top: 18px;
+            left: 18px;
+
+            width: min(330px, calc(100vw - 36px));
+            max-height: calc(100vh - 36px);
+
+            padding: 20px;
+
+            background: var(--ui-bg);
+            border: 1px solid var(--ui-border);
+            border-radius: 18px;
+
+            backdrop-filter: blur(24px) saturate(120%);
+            -webkit-backdrop-filter: blur(24px) saturate(120%);
+
+            box-shadow: 0 20px 70px rgba(0, 0, 0, 0.45),
+            inset 0 1px 0 rgba(255, 255, 255, 0.035);
+
+            z-index: 15;
+
+            overflow-y: auto;
+
+            opacity: 0;
+            transform: translateY(-8px) scale(0.97);
+            pointer-events: none;
+
+            transition: opacity 0.25s ease,
+            transform 0.25s ease;
+        }
+
+        #controls.open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+
+        #controls::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        #controls::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 10px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            margin-bottom: 20px;
+        }
+
+        .panel-title {
+            font-size: 14px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .panel-subtitle {
+            margin-top: 4px;
+            font-size: 10px;
+            color: var(--ui-muted);
+            letter-spacing: 0.04em;
+        }
+
+        #closeButton {
+            width: 28px;
+            height: 28px;
+
+            border: 0;
+            border-radius: 50%;
+
+            background: transparent;
+            color: rgba(255, 255, 255, 0.5);
+
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 18px;
+
+            transition: background 0.2s ease,
+            color 0.2s ease;
+        }
+
+        #closeButton:hover {
+            background: var(--ui-hover);
+            color: #fff;
+        }
+
+        /* --------------------------------------------------
+           SECTIONS
+        -------------------------------------------------- */
+
+        .section {
+            margin-bottom: 21px;
+        }
+
+        .section-title {
+            margin-bottom: 11px;
+
+            font-size: 9px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+
+            color: rgba(255, 255, 255, 0.32);
+        }
+
+        .control {
+            margin-bottom: 14px;
+        }
+
+        .control:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            margin-bottom: 7px;
+
+            color: rgba(255, 255, 255, 0.62);
+            font-size: 11px;
+        }
+
+        .value {
+            color: rgba(255, 255, 255, 0.42);
+            min-width: 50px;
+            text-align: right;
+        }
+
+        /* --------------------------------------------------
+           RANGE SLIDERS
+        -------------------------------------------------- */
+
+        input[type="range"] {
+            appearance: none;
+            -webkit-appearance: none;
+
+            width: 100%;
+            height: 2px;
+
+            margin: 0;
+
+            background: rgba(255, 255, 255, 0.14);
+            border-radius: 10px;
+
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            -webkit-appearance: none;
+
+            width: 11px;
+            height: 11px;
+
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+
+            background: #111;
+
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.04);
+
+            transition: transform 0.15s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 11px;
+            height: 11px;
+
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+
+            background: #111;
+        }
+
+        /* --------------------------------------------------
+           COLOR INPUTS
+        -------------------------------------------------- */
+
+        .color-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .color-control {
+            flex: 1;
+        }
+
+        input[type="color"] {
+            appearance: none;
+            -webkit-appearance: none;
+
+            width: 100%;
+            height: 30px;
+
+            padding: 3px;
+
+            border: 1px solid var(--ui-border);
+            border-radius: 7px;
+
+            background: rgba(255, 255, 255, 0.04);
+
+            cursor: pointer;
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        input[type="color"]::-webkit-color-swatch {
+            border: 0;
+            border-radius: 4px;
+        }
+
+        /* --------------------------------------------------
+           BUTTONS
+        -------------------------------------------------- */
+
+        .button-row {
+            display: flex;
+            gap: 7px;
+        }
+
+        .action {
+            flex: 1;
+
+            height: 32px;
+
+            border: 1px solid var(--ui-border);
+            border-radius: 8px;
+
+            background: rgba(255, 255, 255, 0.035);
+            color: rgba(255, 255, 255, 0.55);
+
+            font-family: inherit;
+            font-size: 10px;
+
+            cursor: pointer;
+
+            transition: background 0.2s ease,
+            color 0.2s ease;
+        }
+
+        .action:hover {
+            background: rgba(255, 255, 255, 0.09);
+            color: #fff;
+        }
+
+        /* --------------------------------------------------
+           MOBILE
+        -------------------------------------------------- */
+
+        @media (max-width: 500px) {
+            #controls {
+                top: 10px;
+                left: 10px;
+
+                width: calc(100vw - 20px);
+                max-height: calc(100vh - 20px);
+
+                padding: 17px;
+            }
+
+            #menuButton {
+                top: 10px;
+                left: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<canvas id="background"></canvas>
+
+<button id="menuButton" aria-label="Open controls">
+    <span id="menuIcon">☰</span>
+</button>
+
+<div id="controls">
+
+    <div class="panel-header">
+        <div>
+            <div class="panel-title">gravity</div>
+            <div class="panel-subtitle">quietly adjust the field</div>
+        </div>
+
+        <button id="closeButton">×</button>
+    </div>
+
+
+    <!-- POPULATION -->
+
+    <div class="section">
+        <div class="section-title">field</div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>population</span>
+                <span class="value" id="populationValue"></span>
+            </div>
+
+            <input
+                    id="population"
+                    type="range"
+                    min="10"
+                    max="160"
+                    step="1"
+                    value="60"
+            >
+        </div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>rotation</span>
+                <span class="value" id="rotationValue"></span>
+            </div>
+
+            <input
+                    id="rotation"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.001"
+                    value="5"
+            >
+        </div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>connection scale</span>
+                <span class="value" id="connectionDistanceValue"></span>
+            </div>
+
+            <input
+                    id="connectionDistance"
+                    type="range"
+                    min="0.05"
+                    max="0.45"
+                    step="0.01"
+                    value="0.22"
+            >
+        </div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>neighbors</span>
+                <span class="value" id="neighborsValue"></span>
+            </div>
+
+            <input
+                    id="neighbors"
+                    type="range"
+                    min="1"
+                    max="8"
+                    step="1"
+                    value="4"
+            >
+        </div>
+    </div>
+
+
+    <!-- PHYSICS -->
+
+    <div class="section">
+        <div class="section-title">physics</div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>mouse force</span>
+                <span class="value" id="mouseForceValue"></span>
+            </div>
+
+            <input
+                    id="mouseForce"
+                    type="range"
+                    min="0"
+                    max="0.0005"
+                    step="0.00001"
+                    value="0.00012"
+            >
+        </div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>particle force</span>
+                <span class="value" id="particleForceValue"></span>
+            </div>
+
+            <input
+                    id="particleForce"
+                    type="range"
+                    min="0"
+                    max="0.001"
+                    step="0.00001"
+                    value="0.000035"
+            >
+        </div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>center pull</span>
+                <span class="value" id="centerForceValue"></span>
+            </div>
+
+            <input
+                    id="centerForce"
+                    type="range"
+                    min="0"
+                    max="0.0002"
+                    step="0.000005"
+                    value="0.00004"
+            >
+        </div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>laziness</span>
+                <span class="value" id="lazinessValue"></span>
+            </div>
+
+            <input
+                    id="laziness"
+                    type="range"
+                    min="0.85"
+                    max="0.999"
+                    step="0.001"
+                    value="0.5"
+            >
+        </div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>maximum speed</span>
+                <span class="value" id="maxSpeedValue"></span>
+            </div>
+
+            <input
+                    id="maxSpeed"
+                    type="range"
+                    min="0.001"
+                    max="0.025"
+                    step="0.001"
+                    value="0.008"
+            >
+        </div>
+    </div>
+
+
+    <!-- APPEARANCE -->
+
+    <div class="section">
+        <div class="section-title">appearance</div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>point size</span>
+                <span class="value" id="pointSizeValue"></span>
+            </div>
+
+            <input
+                    id="pointSize"
+                    type="range"
+                    min="0.5"
+                    max="5"
+                    step="0.1"
+                    value="2.4"
+            >
+        </div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>connection width</span>
+                <span class="value" id="connectionWidthValue"></span>
+            </div>
+
+            <input
+                    id="connectionWidth"
+                    type="range"
+                    min="0.2"
+                    max="3"
+                    step="0.1"
+                    value="1.3"
+            >
+        </div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>connection opacity</span>
+                <span class="value" id="connectionOpacityValue"></span>
+            </div>
+
+            <input
+                    id="connectionOpacity"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value="0.55"
+            >
+        </div>
+
+        <div class="color-row">
+            <div class="color-control">
+                <div class="control-label">
+                    <span>points</span>
+                </div>
+
+                <input id="pointColor" type="color" value="#ffffff">
+            </div>
+
+            <div class="color-control">
+                <div class="control-label">
+                    <span>lines</span>
+                </div>
+
+                <input id="connectionColor" type="color" value="#ffffff">
+            </div>
+        </div>
+    </div>
+
+
+    <!-- SHOCKWAVE -->
+
+    <div class="section">
+        <div class="section-title">shockwave</div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>strength</span>
+                <span class="value" id="shockStrengthValue"></span>
+            </div>
+
+            <input
+                    id="shockStrength"
+                    type="range"
+                    min="0"
+                    max="0.04"
+                    step="0.001"
+                    value="0.01"
+            >
+        </div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>radius</span>
+                <span class="value" id="shockRadiusValue"></span>
+            </div>
+
+            <input
+                    id="shockRadius"
+                    type="range"
+                    min="0.05"
+                    max="0.8"
+                    step="0.01"
+                    value="0.45"
+            >
+        </div>
+    </div>
+
+
+    <!-- ACTIONS -->
+
+    <div class="section">
+        <div class="section-title">system</div>
+
+        <div class="button-row">
+            <button class="action" id="reset">reset</button>
+            <button class="action" id="regenerate">regenerate</button>
+        </div>
+    </div>
+
+</div>
+
+
+<script>
+    /* =====================================================
+       UI
+    ===================================================== */
+
+    const menuButton = document.getElementById("menuButton");
+    const closeButton = document.getElementById("closeButton");
+    const controls = document.getElementById("controls");
+
+    let menuOpen = false;
+    let idleTimer;
+
+    function openMenu() {
+        menuOpen = true;
+
+        controls.classList.add("open");
+        menuButton.classList.add("open");
+
+        clearTimeout(idleTimer);
+    }
+
+    function closeMenu() {
+        menuOpen = false;
+
+        controls.classList.remove("open");
+        menuButton.classList.remove("open");
+
+        resetIdleTimer();
+    }
+
+    menuButton.addEventListener("click", e => {
+        e.stopPropagation();
+
+        if (menuOpen) {
+            closeMenu();
+        } else {
+            openMenu();
+        }
+    });
+
+    closeButton.addEventListener("click", e => {
+        e.stopPropagation();
+        closeMenu();
+    });
+
+
+    /*
+        The button disappears after a period of inactivity.
+        Moving near the top-left corner wakes it up.
+    */
+
+    function resetIdleTimer() {
+        clearTimeout(idleTimer);
+
+        if (menuOpen) return;
+
+        menuButton.classList.remove("hidden");
+
+        idleTimer = setTimeout(() => {
+            if (!menuOpen) {
+                menuButton.classList.add("hidden");
+            }
+        }, 2800);
+    }
+
+    document.addEventListener("mousemove", e => {
+        if (menuOpen) return;
+
+        if (e.clientX < 100 && e.clientY < 100) {
+            resetIdleTimer();
+        }
+    });
+
+    document.addEventListener("mousemove", resetIdleTimer);
+
+    resetIdleTimer();
+
+
+    /* =====================================================
+       SETTINGS
+    ===================================================== */
+
+    const DEFAULTS = {
+        population: 60,
+        rotation: 0.01,
+
+        connectionDistance: 0.22,
+        neighbors: 4,
+
+        mouseForce: 0.00012,
+        particleForce: 0.000035,
+        centerForce: 0.00004,
+
+        laziness: 0.98,
+        maxSpeed: 0.008,
+
+        pointSize: 2.4,
+        connectionWidth: 1.3,
+        connectionOpacity: 0.55,
+
+        pointColor: "#ffffff",
+        connectionColor: "#ffffff",
+
+        shockStrength: 0.01,
+        shockRadius: 0.45
+    };
+
+    const settings = {...DEFAULTS};
+
+
+    /* =====================================================
+       HELPERS
+    ===================================================== */
+
+    function hexToRgb(hex) {
+        hex = hex.replace("#", "");
+
+        return {
+            r: parseInt(hex.substring(0, 2), 16),
+            g: parseInt(hex.substring(2, 4), 16),
+            b: parseInt(hex.substring(4, 6), 16)
+        };
+    }
+
+    function formatSmall(value) {
+        if (value === 0) return "0";
+
+        if (Math.abs(value) < 0.001) {
+            return value.toExponential(1);
+        }
+
+        return Number(value).toFixed(3);
+    }
+
+
+    /* =====================================================
+       CANVAS
+    ===================================================== */
+
+    const canvas = document.getElementById("background");
+    const ctx = canvas.getContext("2d");
+
+    let points = [];
+    let shockwaves = [];
+
+    function resize() {
+        const dpr = window.devicePixelRatio || 1;
+
+        canvas.width = window.innerWidth * dpr;
+        canvas.height = window.innerHeight * dpr;
+
+        canvas.style.width = window.innerWidth + "px";
+        canvas.style.height = window.innerHeight + "px";
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    window.addEventListener("resize", resize);
+    resize();
+
+
+    /* =====================================================
+       POINTS
+    ===================================================== */
+
+    function createPoint() {
+        return {
+            x: 0.2 + Math.random() * 0.6,
+            y: 0.2 + Math.random() * 0.6,
+
+            vx: (Math.random() - 0.5) * 0.002,
+            vy: (Math.random() - 0.5) * 0.002
+        };
+    }
+
+    function generatePoints() {
+        points = [];
+
+        for (let i = 0; i < settings.population; i++) {
+            points.push(createPoint());
+        }
+    }
+
+    generatePoints();
+
+
+    /* =====================================================
+       MOUSE
+    ===================================================== */
+
+    let mx = -1000;
+    let my = -1000;
+
+    window.addEventListener("mousemove", e => {
+        mx = e.clientX / window.innerWidth;
+        my = e.clientY / window.innerHeight;
+    });
+
+
+    /* =====================================================
+       SHOCKWAVE
+    ===================================================== */
+
+    function explosion(x, y) {
+
+        shockwaves.push({
+            x: x * window.innerWidth,
+            y: y * window.innerHeight,
+            r: 0,
+            life: 1
+        });
+
+        const duration = 220;
+        const start = performance.now();
+
+        function push(now) {
+
+            const t = (now - start) / duration;
+
+            if (t >= 1) return;
+
+            const pulse = Math.sin(t * Math.PI);
+
+            points.forEach(p => {
+
+                let dx = p.x - x;
+                let dy = p.y - y;
+
+                if (dx > 0.5) dx -= 1;
+                if (dx < -0.5) dx += 1;
+
+                if (dy > 0.5) dy -= 1;
+                if (dy < -0.5) dy += 1;
+
+                const d = Math.sqrt(dx * dx + dy * dy);
+
+                if (d >= settings.shockRadius) return;
+
+                const tdist =
+                    1 - d / settings.shockRadius;
+
+                const falloff =
+                    tdist * tdist * (3 - 2 * tdist);
+
+                const force =
+                    settings.shockStrength *
+                    falloff *
+                    pulse;
+
+                if (d > 0.00001) {
+
+                    p.vx += (dx / d) * force;
+                    p.vy += (dy / d) * force;
+                }
+            });
+
+            requestAnimationFrame(push);
+        }
+
+        requestAnimationFrame(push);
+    }
+
+
+    /*
+        Only clicks on the actual canvas create explosions.
+        This prevents clicking the UI from triggering physics.
+    */
+
+    canvas.addEventListener("click", e => {
+
+        const x = e.clientX / window.innerWidth;
+        const y = e.clientY / window.innerHeight;
+
+        explosion(x, y);
+    });
+
+
+    /* =====================================================
+       PHYSICS
+    ===================================================== */
+
+    function gravity() {
+
+        const n = points.length;
+
+        for (let i = 0; i < n; i++) {
+
+            const p = points[i];
+
+            /* movement */
+
+            p.x += p.vx;
+            p.y += p.vy;
+
+
+            /* wrapping */
+
+            if (p.x < 0) p.x += 1;
+            if (p.x > 1) p.x -= 1;
+
+            if (p.y < 0) p.y += 1;
+            if (p.y > 1) p.y -= 1;
+
+
+            /* damping */
+
+            p.vx *= settings.laziness;
+            p.vy *= settings.laziness;
+
+
+            /* mouse repulsion */
+
+            if (
+                mx >= 0 &&
+                mx <= 1 &&
+                my >= 0 &&
+                my <= 1
+            ) {
+
+                const dxm = p.x - mx;
+                const dym = p.y - my;
+
+                const dm2 =
+                    dxm * dxm +
+                    dym * dym +
+                    0.0001;
+
+                const fm =
+                    settings.mouseForce / dm2;
+
+                p.vx += fm * dxm;
+                p.vy += fm * dym;
+            }
+
+
+            /* mutual repulsion */
+
+            for (let j = 0; j < n; j++) {
+
+                if (i === j) continue;
+
+                const p2 = points[j];
+
+                let dx = p.x - p2.x;
+                let dy = p.y - p2.y;
+
+                if (dx > 0.5) dx -= 1;
+                if (dx < -0.5) dx += 1;
+
+                if (dy > 0.5) dy -= 1;
+                if (dy < -0.5) dy += 1;
+
+                const d2 =
+                    dx * dx +
+                    dy * dy +
+                    0.00005;
+
+                const f =
+                    settings.particleForce / d2;
+
+                p.vx += f * dx;
+                p.vy += f * dy;
+            }
+
+
+            /* center attraction */
+
+            let cx = 0.5 - p.x;
+            let cy = 0.5 - p.y;
+
+            if (cx > 0.5) cx -= 1;
+            if (cx < -0.5) cx += 1;
+
+            if (cy > 0.5) cy -= 1;
+            if (cy < -0.5) cy += 1;
+
+            p.vx += cx * settings.centerForce;
+            p.vy += cy * settings.centerForce;
+
+
+            /* speed limit */
+
+            const speed =
+                Math.sqrt(
+                    p.vx * p.vx +
+                    p.vy * p.vy
+                );
+
+            if (speed > settings.maxSpeed) {
+
+                const scale =
+                    settings.maxSpeed / speed;
+
+                p.vx *= scale;
+                p.vy *= scale;
+            }
+        }
+    }
+
+
+    /* =====================================================
+       NETWORK
+    ===================================================== */
+
+    function buildNetwork(projected) {
+
+        const n = projected.length;
+        const edges = new Set();
+
+        const maxD =
+            settings.connectionDistance *
+            Math.min(
+                window.innerWidth,
+                window.innerHeight
+            );
+
+        for (let i = 0; i < n; i++) {
+
+            const dists = [];
+
+            for (let j = 0; j < n; j++) {
+
+                if (i === j) continue;
+
+                const dx =
+                    projected[i].x -
+                    projected[j].x;
+
+                const dy =
+                    projected[i].y -
+                    projected[j].y;
+
+                dists.push({
+                    j,
+                    d: Math.sqrt(dx * dx + dy * dy)
+                });
+            }
+
+            dists.sort((a, b) => a.d - b.d);
+
+            let connected = 0;
+
+            for (const {j, d} of dists) {
+
+                if (
+                    connected >=
+                    settings.neighbors
+                ) {
+                    break;
+                }
+
+                if (d > maxD) continue;
+
+                const a = Math.min(i, j);
+                const b = Math.max(i, j);
+
+                edges.add(a + "," + b);
+
+                connected++;
+            }
+        }
+
+        return edges;
+    }
+
+
+    /* =====================================================
+       RENDER
+    ===================================================== */
+
+    let loop;
+
+    function frame() {
+
+        ctx.clearRect(
+            0,
+            0,
+            window.innerWidth,
+            window.innerHeight
+        );
+
+
+        /* physics */
+
+        gravity();
+
+
+        /* shockwaves */
+
+        for (
+            let i = shockwaves.length - 1;
+            i >= 0;
+            i--
+        ) {
+
+            const s = shockwaves[i];
+
+            s.r += 8;
+            s.life -= 0.03;
+
+            ctx.beginPath();
+
+            ctx.arc(
+                s.x,
+                s.y,
+                s.r,
+                0,
+                Math.PI * 2
+            );
+
+            const c =
+                hexToRgb(settings.pointColor);
+
+            ctx.strokeStyle =
+                `rgba(${c.r},${c.g},${c.b},${s.life})`;
+
+            ctx.lineWidth = 1.8;
+
+            ctx.stroke();
+
+            if (s.life <= 0) {
+                shockwaves.splice(i, 1);
+            }
+        }
+
+
+        /* population evolution */
+
+        if (points.length < settings.population) {
+
+            points.push(createPoint());
+
+        } else if (
+            points.length > settings.population
+        ) {
+
+            points.splice(
+                Math.floor(Math.random() * points.length),
+                1
+            );
+        }
+
+        if (Math.random() < settings.rotation) {
+            points.push({
+                x: Math.random(),
+                y: Math.random(),
+                vx: (Math.random() - 0.5) * 0.002,
+                vy: (Math.random() - 0.5) * 0.002
+            });
+
+            if (points.length > settings.population + 2) {
+                points.splice(
+                    Math.floor(Math.random() * points.length),
+                    1
+                );
+            }
+        }
+
+
+        /* projection */
+
+        const projected = points.map(p => ({
+            x: p.x * window.innerWidth,
+            y: p.y * window.innerHeight
+        }));
+
+
+        /* network */
+
+        const edges =
+            buildNetwork(projected);
+
+        const connectionRGB =
+            hexToRgb(settings.connectionColor);
+
+        for (const key of edges) {
+
+            const [a, b] =
+                key.split(",").map(Number);
+
+            const p0 = projected[a];
+            const p1 = projected[b];
+
+            if (!p0 || !p1) continue;
+
+            const dx = p0.x - p1.x;
+            const dy = p0.y - p1.y;
+
+            const dist =
+                Math.sqrt(dx * dx + dy * dy);
+
+            const maxD =
+                settings.connectionDistance *
+                Math.min(
+                    window.innerWidth,
+                    window.innerHeight
+                );
+
+            const alpha =
+                Math.max(
+                    0.05,
+                    settings.connectionOpacity *
+                    (1 - dist / maxD)
+                );
+
+            ctx.beginPath();
+
+            ctx.moveTo(p0.x, p0.y);
+            ctx.lineTo(p1.x, p1.y);
+
+            ctx.strokeStyle =
+                `rgba(
+                ${connectionRGB.r},
+                ${connectionRGB.g},
+                ${connectionRGB.b},
+                ${alpha}
+            )`;
+
+            ctx.lineWidth =
+                settings.connectionWidth;
+
+            ctx.stroke();
+        }
+
+
+        /* particles */
+
+        const pointRGB =
+            hexToRgb(settings.pointColor);
+
+        ctx.fillStyle =
+            `rgb(
+            ${pointRGB.r},
+            ${pointRGB.g},
+            ${pointRGB.b}
+        )`;
+
+        for (const p of projected) {
+
+            ctx.beginPath();
+
+            ctx.arc(
+                p.x,
+                p.y,
+                settings.pointSize,
+                0,
+                Math.PI * 2
+            );
+
+            ctx.fill();
+        }
+
+
+        loop =
+            requestAnimationFrame(frame);
+    }
+
+    loop = requestAnimationFrame(frame);
+
+
+    /* =====================================================
+       CONTROLS
+    ===================================================== */
+
+    const controlsMap = {
+
+        population: {
+            value: "populationValue",
+            format: v => Math.round(v)
+        },
+
+        rotation: {
+            value: "rotationValue",
+            format: v => Number(v).toFixed(2)
+        },
+
+        connectionDistance: {
+            value: "connectionDistanceValue",
+            format: v => Number(v).toFixed(2)
+        },
+
+        neighbors: {
+            value: "neighborsValue",
+            format: v => Math.round(v)
+        },
+
+        mouseForce: {
+            value: "mouseForceValue",
+            format: formatSmall
+        },
+
+        particleForce: {
+            value: "particleForceValue",
+            format: formatSmall
+        },
+
+        centerForce: {
+            value: "centerForceValue",
+            format: formatSmall
+        },
+
+        laziness: {
+            value: "lazinessValue",
+            format: v => Number(v).toFixed(3)
+        },
+
+        maxSpeed: {
+            value: "maxSpeedValue",
+            format: v => Number(v).toFixed(3)
+        },
+
+        pointSize: {
+            value: "pointSizeValue",
+            format: v => Number(v).toFixed(1)
+        },
+
+        connectionWidth: {
+            value: "connectionWidthValue",
+            format: v => Number(v).toFixed(1)
+        },
+
+        connectionOpacity: {
+            value: "connectionOpacityValue",
+            format: v => Number(v).toFixed(2)
+        },
+
+        shockStrength: {
+            value: "shockStrengthValue",
+            format: v => Number(v).toFixed(3)
+        },
+
+        shockRadius: {
+            value: "shockRadiusValue",
+            format: v => Number(v).toFixed(2)
+        }
+    };
+
+
+    for (const [id, config] of Object.entries(controlsMap)) {
+
+        const input =
+            document.getElementById(id);
+
+        const output =
+            document.getElementById(config.value);
+
+        input.addEventListener("input", () => {
+
+            settings[id] =
+                parseFloat(input.value);
+
+            output.textContent =
+                config.format(settings[id]);
+        });
+
+        settings[id] =
+            parseFloat(input.value);
+
+        output.textContent =
+            config.format(settings[id]);
+    }
+
+
+    /* colors */
+
+    document.getElementById("pointColor")
+        .addEventListener("input", e => {
+            settings.pointColor =
+                e.target.value;
+        });
+
+    document.getElementById("connectionColor")
+        .addEventListener("input", e => {
+            settings.connectionColor =
+                e.target.value;
+        });
+
+
+    /* =====================================================
+       RESET
+    ===================================================== */
+
+    document.getElementById("reset")
+        .addEventListener("click", () => {
+
+            for (const [key, value] of Object.entries(DEFAULTS)) {
+
+                settings[key] = value;
+
+                const input =
+                    document.getElementById(key);
+
+                if (input) {
+                    input.value = value;
+                }
+
+                const config =
+                    controlsMap[key];
+
+                if (config) {
+
+                    document.getElementById(
+                        config.value
+                    ).textContent =
+                        config.format(value);
+                }
+            }
+
+            document.getElementById("pointColor").value =
+                DEFAULTS.pointColor;
+
+            document.getElementById("connectionColor").value =
+                DEFAULTS.connectionColor;
+
+            generatePoints();
+        });
+
+
+    /* =====================================================
+       REGENERATE
+    ===================================================== */
+
+    document.getElementById("regenerate")
+        .addEventListener("click", () => {
+            generatePoints();
+        });
+
+
+    /* =====================================================
+       FULLSCREEN
+    ===================================================== */
+
+    let fullscreenTriggered = false;
+
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "f") document.click()
+    })
+
+    document.addEventListener("click", e => {
+
+        /*
+            Fullscreen is intentionally only triggered by
+            the first click on the actual canvas.
+        */
+
+        if (
+            fullscreenTriggered ||
+            e.target !== canvas
+        ) {
+            return;
+        }
+
+        fullscreenTriggered = true;
+
+        document.documentElement
+            .requestFullscreen?.()
+            .catch(() => {
+            });
+    });
+
+
+    /* =====================================================
+       CLEANUP
+    ===================================================== */
+
+    window.remove_script = function () {
+
+        cancelAnimationFrame(loop);
+
+        window.removeEventListener(
+            "resize",
+            resize
+        );
+    };
+</script>
+
+</body>
+</html>
