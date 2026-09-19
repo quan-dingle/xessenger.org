@@ -1,6 +1,6 @@
 node_modules/
 assets/websites/
-patterns/
+#patterns/
 *.json
 upload.py
 .idea

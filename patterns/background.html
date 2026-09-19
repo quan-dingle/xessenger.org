@@ -987,15 +987,6 @@
             p.y += p.vy;
 
 
-            /* wrapping */
-
-            if (p.x < 0) p.x += 1;
-            if (p.x > 1) p.x -= 1;
-
-            if (p.y < 0) p.y += 1;
-            if (p.y > 1) p.y -= 1;
-
-
             /* damping */
 
             p.vx *= settings.laziness;
@@ -1162,6 +1153,34 @@
        RENDER
     ===================================================== */
 
+    function edgeFade(x, y) {
+
+        const FADE_START = 0.82;
+        const FADE_END = 1.18;
+
+        const distanceToEdge =
+            Math.min(
+                x + 0.18,
+                y + 0.18,
+                1.18 - x,
+                1.18 - y
+            );
+
+        let fade =
+            (distanceToEdge - 0.0) /
+            (FADE_END - FADE_START);
+
+        fade =
+            Math.max(0, Math.min(1, fade));
+
+        // smoothstep
+        fade =
+            fade * fade * (3 - 2 * fade);
+
+        return fade;
+    }
+
+
     let loop;
 
     function frame() {
@@ -1290,12 +1309,23 @@
                     window.innerHeight
                 );
 
+            const fadeA =
+                edgeFade(points[a].x, points[a].y);
+
+            const fadeB =
+                edgeFade(points[b].x, points[b].y);
+
+            const edgeFadeAmount =
+                Math.min(fadeA, fadeB);
+
             const alpha =
                 Math.max(
-                    0.05,
+                    0,
                     settings.connectionOpacity *
-                    (1 - dist / maxD)
+                    (1 - dist / maxD) *
+                    edgeFadeAmount
                 );
+
 
             ctx.beginPath();
 
@@ -1319,30 +1349,47 @@
 
         /* particles */
 
-        const pointRGB =
-            hexToRgb(settings.pointColor);
+        const pointRGB = hexToRgb(settings.pointColor);
 
-        ctx.fillStyle =
-            `rgb(
-            ${pointRGB.r},
-            ${pointRGB.g},
-            ${pointRGB.b}
-        )`;
+        for (let i = 0; i < projected.length; i++) {
 
-        for (const p of projected) {
+            const p = projected[i];
+            const source = points[i];
+
+            const fade = edgeFade(source.x, source.y);
+
+            if (fade <= 0) continue;
+
+            /*
+                Make particles physically smaller
+                as they approach the edge.
+            */
+
+            const size =
+                settings.pointSize *
+                (0.15 + 0.85 * fade);
 
             ctx.beginPath();
 
             ctx.arc(
                 p.x,
                 p.y,
-                settings.pointSize,
+                size,
                 0,
                 Math.PI * 2
             );
 
+            ctx.fillStyle =
+                `rgba(
+            ${pointRGB.r},
+            ${pointRGB.g},
+            ${pointRGB.b},
+            ${fade}
+        )`;
+
             ctx.fill();
         }
+
 
 
         loop =

@@ -16,7 +16,7 @@ TODO:|\/\|\/\|\/\|\/\|\/\|\/\|\/
 - better room selector
 */
 
-const isServer = true;//os.hostname() === "vmd197130";
+const isServer = os.hostname() === "vmd197130";
 console.log("launched as",os.hostname()+", currently in",isServer?"prod":"dev")
 import os from "os";
 import http from "http";
