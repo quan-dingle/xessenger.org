@@ -102,7 +102,7 @@ const server = http.createServer((req, res) => {
     }
     if (req.url === "/style.css") {
         res.writeHead(200, {"Content-Type": "text/css"});
-        res.end(fs.readFileSync("public/style2.css").toString());
+        res.end(fs.readFileSync("public/style.css").toString());
         return;
     }
     if (req.url === "/app.js") {
