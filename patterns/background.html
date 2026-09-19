@@ -901,7 +901,7 @@
             x: x * window.innerWidth,
             y: y * window.innerHeight,
             r: 0,
-            life: 1
+            life: settings.shockStrength*25
         });
 
         const duration = 220;
@@ -1209,14 +1209,14 @@
             const s = shockwaves[i];
 
             s.r += 8;
-            s.life -= 0.03;
+            s.life -= 0.03*settings.shockStrength*25;
 
             ctx.beginPath();
 
             ctx.arc(
                 s.x,
                 s.y,
-                s.r,
+                s.r*settings.shockRadius*settings.shockStrength*100,
                 0,
                 Math.PI * 2
             );
