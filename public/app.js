@@ -14,8 +14,7 @@ const appContainer = document.getElementById('app-container');
 
 /*
 TODO:
-- fic click outside editing message will cancel edit
-- embeds for geo, tt, reels
+- embeds for tt, reels
 - room config
 - profile config
 - admin panel
@@ -248,7 +247,9 @@ function createPreviewElement(content, previewLink = "") {
     const fullScreenPreview = document.createElement("button");
         fullScreenPreview.innerText = "⛶";
         fullScreenPreview.onclick = (e) => {e.stopPropagation();
-        // TODO: Add full screen logic here (e.g., preview.requestFullscreen())
+        previewBody.requestFullscreen();
+        document.body.onclick=document.exitFullscreen();
+        // TODO: re-center the fucking iframe
         };
     const hidePreview = document.createElement("button");
         hidePreview.innerText = "▴";
