@@ -1,292 +1,883 @@
+/* ========================================================================== */
+/* XSngr // CLI TERMINAL                                                     */
+/* ========================================================================== */
+
 :root {
-    --bg: #050505;
-    --text: #00ff66; /* Classic terminal phosphor green */
-    --text-muted: #008f3f;
-    --surface: #0a0a0a;
-    --input: #000000;
-    --border: #00ff66;
-    --my-bub: #ffb000; /* Amber accent for user/self messages */
-    --bub: 10, 10, 10;
-    --fsize: 1.2;
+    --terminal-bg: #080a0c;
+    --terminal-fg: #d6d9dc;
+    --terminal-dim: #68717a;
+    --terminal-green: #67e8a5;
+    --terminal-cyan: #67d9ff;
+    --terminal-blue: #79aaff;
+    --terminal-yellow: #e8d47a;
+    --terminal-red: #ff6b7a;
+    --terminal-purple: #c59cff;
+
+    --terminal-prompt: #67e8a5;
+    --terminal-border: #20262c;
+
+    --font: "DejaVu Sans Mono",
+            "Liberation Mono",
+            "Courier New",
+            monospace;
 }
 
-body.light-mode {
-    --bg: #f0f0f0;
-    --text: #004411;
-    --text-muted: #006622;
-    --surface: #e0e0e0;
-    --input: #ffffff;
-    --border: #004411;
-    --my-bub: #b86b00;
-    --bub: 220, 220, 220;
+
+/* ========================================================================== */
+/* GLOBAL                                                                     */
+/* ========================================================================== */
+
+* {
+    box-sizing: border-box;
 }
 
-/* =========================================================
-   GLOBAL TERMINAL STYLES
-   ========================================================= */
-
+html,
 body {
-    user-select: none;
-    margin: 0;
-    overflow: hidden;
     width: 100%;
     height: 100%;
-    background: var(--bg);
-    color: var(--text);
-    font-family: "Courier New", Courier, monospace;
-    text-shadow: 0 0 4px rgba(0, 255, 102, 0.4);
+    margin: 0;
+    overflow: hidden;
 }
 
-/* Optional CRT Scanline Overlay Effect */
-body::after {
-    content: " ";
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
-    background-size: 100% 4px;
-    z-index: 999;
-    pointer-events: none;
-}
+body {
+    background: var(--terminal-bg);
+    color: var(--terminal-fg);
 
-input, select, button {
-    font-family: "Courier New", Courier, monospace !important;
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.5;
+
+    -webkit-font-smoothing: antialiased;
 }
 
 
-/* =========================================================
-   BACKGROUND / APP CONTAINER
-   ========================================================= */
+/* ========================================================================== */
+/* REMOVE THE "APP" FEEL                                                     */
+/* ========================================================================== */
 
 #background {
-    display: none; /* Hide canvas background for pure terminal look */
+    display: none;
 }
 
 #app-container {
-    height: 100vh;
-    height: 100dvh;
+    position: fixed;
+    inset: 0;
+
     display: flex;
     flex-direction: column;
-    background: var(--bg);
+
+    background: var(--terminal-bg);
+
+    filter: none !important;
 }
 
 
-/* =========================================================
-   TOP BAR (SYSTEM STATUS)
-   ========================================================= */
+/* ========================================================================== */
+/* TOP BAR                                                                    */
+/*                                                                            */
+/* Turns the existing top area into something resembling a terminal status    */
+/* line.                                                                      */
+/* ========================================================================== */
 
 #top {
-    height: 45px;
-    padding: 0 10px;
+    flex: 0 0 auto;
+
+    height: 42px;
+
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    background: var(--surface);
-    border-bottom: 2px dashed var(--border);
+
+    padding: 0 18px;
+
+    border-bottom: 1px solid var(--terminal-border);
+
+    font-family: var(--font);
+    font-size: 12px;
+
+    user-select: none;
 }
 
-#chat-icon, #pfp {
-    width: 24px;
-    height: 24px;
-    border-radius: 0;
-    border: 1px solid var(--border);
+
+/* Hide graphical branding. */
+
+#chat-icon,
+#pfp {
+    display: none;
 }
+
+
+/* Room area becomes the terminal's status/control area. */
 
 #room-area {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 8px;
+
+    width: 100%;
 }
+
+
+/* Little prompt-like indicator before room selector. */
+
+#room-area::before {
+    content: "[XSngr]";
+    color: var(--terminal-purple);
+}
+
+
+/* Room selector */
 
 #room-selector {
-    height: 28px;
-    background: var(--input);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 0;
-    padding: 0 5px;
-    font-size: 13px;
-}
+    appearance: none;
+    -webkit-appearance: none;
 
-#new-room {
-    width: 28px;
-    height: 28px;
-    background: var(--input);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 0;
+    border: 0;
+    outline: 0;
+
+    background: transparent;
+
+    color: var(--terminal-cyan);
+
+    font: inherit;
+    font-size: 12px;
+
+    padding: 0;
+
     cursor: pointer;
 }
 
+#room-selector:hover {
+    color: white;
+}
 
-/* =========================================================
-   CHAT FEED
-   ========================================================= */
+#room-selector:focus {
+    color: white;
+}
+
+
+/*
+ * Hide the graphical + room creation button.
+ */
+
+#new-room {
+    display: none;
+}
+
+
+/* ========================================================================== */
+/* CHAT                                                                       */
+/* ========================================================================== */
 
 #chat {
-    flex: 1;
-    padding: 15px;
+    flex: 1 1 auto;
+
+    min-height: 0;
+
     overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    overflow-x: hidden;
+
+    padding: 22px 24px 30px;
+
+    scrollbar-width: thin;
+    scrollbar-color: #252b31 transparent;
 }
+
+
+/* Terminal scrollbar */
+
+#chat::-webkit-scrollbar {
+    width: 8px;
+}
+
+#chat::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#chat::-webkit-scrollbar-thumb {
+    background: #252b31;
+}
+
+#chat::-webkit-scrollbar-thumb:hover {
+    background: #353d45;
+}
+
+
+/* ========================================================================== */
+/* MESSAGES                                                                   */
+/* ========================================================================== */
 
 .message-container {
+    position: relative;
+
+    display: block;
+
     width: 100%;
-    margin-top: 4px;
-    display: flex;
-    flex-direction: column;
+
+    margin: 0 0 7px;
+
+    padding: 0;
+
+    animation: terminal-line-in 120ms ease-out;
 }
+
+
+/*
+ * Don't visually group consecutive messages like a messenger.
+ */
+
+.message-container.consecutive {
+    margin-top: 0 !important;
+}
+
+
+/* ========================================================================== */
+/* MESSAGE HEADER                                                             */
+/* ========================================================================== */
 
 .message-header {
-    display: none; /* CLI style folds sender and time directly into text flow */
+    display: inline;
+
+    margin: 0;
+    padding: 0;
+
+    font-size: 13px;
 }
 
 
-/* =========================================================
-   CLI MESSAGE BLOCKS ([USER] text 12:23:34)
-   ========================================================= */
+/*
+ * Make every line begin with something terminal-like:
+ *
+ * [04:49:56] six7$
+ */
+
+.message-header::before {
+    content: "[";
+
+    color: var(--terminal-dim);
+}
+
+.message-header::after {
+    content: "]";
+
+    color: var(--terminal-dim);
+}
+
+
+.sender {
+    color: var(--terminal-green);
+
+    font-size: 13px;
+    font-weight: 500;
+
+    margin-left: 4px;
+}
+
+.sender::after {
+    content: ">";
+    color: var(--terminal-dim);
+
+    margin-left: 6px;
+}
+
+
+.time {
+    color: var(--terminal-dim);
+
+    font-size: 11px;
+}
+
+
+/* ========================================================================== */
+/* MESSAGE BODY                                                               */
+/* ========================================================================== */
 
 .bubble {
-    width: 100%;
-    max-width: 100%;
+    display: inline;
+
+    max-width: none;
+
+    margin: 0;
     padding: 0;
-    background: transparent;
-    border: none;
+
+    border: 0;
     border-radius: 0;
-    box-shadow: none;
-    backdrop-filter: none;
-    font-size: calc(var(--fsize) * 14px);
-    color: var(--text);
+
+    background: transparent;
+
+    color: var(--terminal-fg);
+
+    font-family: var(--font);
+    font-size: 14px;
+
     white-space: pre-wrap;
-    word-wrap: break-word;
+    overflow-wrap: anywhere;
 }
 
-/* Custom pseudo-elements to fake the CLI bracket structure */
-.message-container .bubble::before {
-    content: "[" attr(data-sender) "] ";
-    color: var(--text-muted);
-    font-weight: bold;
+
+/*
+ * Don't make messages look like speech bubbles.
+ */
+
+.message-container.self .bubble {
+    background: transparent;
 }
 
 .message-container.self .bubble::before {
-    color: var(--my-bub);
+    content: " ";
 }
 
-.self .bubble {
-    color: var(--my-bub);
-    text-shadow: 0 0 4px rgba(255, 176, 0, 0.4);
+
+/* ========================================================================== */
+/* SERVER MESSAGE                                                             */
+/* ========================================================================== */
+
+.message-container[data-sender="SERVER"] .sender {
+    color: var(--terminal-yellow);
 }
 
-.bubble:hover {
-    filter: none;
-    background: rgba(0, 255, 102, 0.05);
+.message-container[data-sender="SERVER"] .bubble {
+    color: var(--terminal-dim);
 }
 
-.time {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-left: 8px;
+
+/* ========================================================================== */
+/* DELETED MESSAGE                                                            */
+/* ========================================================================== */
+
+.deleted-message {
+    opacity: 0.45;
 }
 
 .deleted-message .bubble {
-    color: #555;
+    color: var(--terminal-dim);
     text-decoration: line-through;
 }
 
 
-/* =========================================================
-   ATTACHMENTS & PREVIEWS
-   ========================================================= */
+/* ========================================================================== */
+/* EDITED MESSAGE                                                             */
+/* ========================================================================== */
+
+.edited-tag {
+    display: inline;
+
+    margin-left: 10px;
+
+    color: var(--terminal-dim);
+
+    font-size: 10px;
+}
+
+.edited-tag::before {
+    content: "/* ";
+}
+
+.edited-tag::after {
+    content: " */";
+}
+
+
+/* ========================================================================== */
+/* ATTACHMENTS                                                                */
+/* ========================================================================== */
 
 .attachment-bubble {
-    border: 1px dashed var(--border);
-    border-radius: 0;
-    background: var(--surface);
-    padding: 4px;
+    display: block;
+
+    width: fit-content;
+
+    margin: 5px 0 8px;
+
+    border: 1px solid var(--terminal-border);
+    border-radius: 2px;
+
+    background: #0c0f12;
 }
+
+.attachment-bubble img {
+    display: block;
+
+    max-width: min(700px, 80vw);
+    max-height: 500px;
+
+    object-fit: contain;
+}
+
+
+/* ========================================================================== */
+/* LINK PREVIEWS                                                              */
+/* ========================================================================== */
+
+/*
+ * Normally the preview doesn't exist visually.
+ *
+ * Hover the message and it fades in as a terminal popup.
+ */
 
 .link-preview {
-    border: 1px solid var(--border);
-    background: var(--surface);
-    border-radius: 0;
+    position: absolute;
+
+    left: 0;
+    top: calc(100% + 8px);
+
+    z-index: 50;
+
+    width: min(620px, calc(100vw - 48px));
+
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+
+    transform: translateY(-4px);
+
+    transition:
+        opacity 100ms ease,
+        transform 100ms ease,
+        visibility 100ms;
 }
 
 
-/* =========================================================
-   BOTTOM BAR & INPUT
-   ========================================================= */
+/*
+ * The message itself becomes the trigger.
+ */
 
-#bottom {
-    padding: 8px;
-    background: var(--surface);
-    border-top: 2px dashed var(--border);
+.message-container:has(.link-preview):hover .link-preview {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+
+    transform: translateY(0);
+}
+
+
+/*
+ * Terminal window frame.
+ */
+
+.link-preview-body {
+    position: relative;
+
+    border: 1px solid #303840;
+
+    background: #050607;
+
+    box-shadow:
+        0 12px 35px rgba(0, 0, 0, .65);
+
+    padding: 3px;
+}
+
+
+/*
+ * Fake terminal title bar.
+ */
+
+.link-preview-body::before {
+    content: "preview";
+
+    display: block;
+
+    height: 22px;
+
+    padding: 2px 8px;
+
+    border-bottom: 1px solid #20262c;
+
+    color: var(--terminal-dim);
+
+    background: #0c0f12;
+
+    font-size: 10px;
+
+    line-height: 18px;
+}
+
+
+.link-preview-placeholder {
+    position: relative;
+
+    min-height: 100px;
+
+    background: #090b0d;
+}
+
+.link-preview-placeholder img {
+    display: block;
+
+    width: 100%;
+    max-height: 350px;
+
+    object-fit: contain;
+}
+
+
+/* Preview footer becomes terminal controls */
+
+.link-preview-footer {
     display: flex;
-    gap: 6px;
+
+    border: 1px solid #303840;
+    border-top: 0;
+
+    background: #0c0f12;
 }
 
-#msg {
-    flex: 1;
-    height: 34px;
-    background: var(--input);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 0;
-    padding: 0 8px;
-    font-size: 14px;
-    outline: none;
-}
+.link-preview-footer button {
+    appearance: none;
 
-#msg:focus {
-    box-shadow: 0 0 4px var(--border);
-}
+    width: 32px;
+    height: 24px;
 
-#send-msg, #upload, #open-prefs {
-    height: 34px;
-    background: var(--input);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 0;
-    padding: 0 12px;
+    border: 0;
+    border-right: 1px solid #20262c;
+
+    background: transparent;
+
+    color: var(--terminal-dim);
+
+    font: 12px var(--font);
+
     cursor: pointer;
 }
 
-#send-msg:hover, #upload:hover, #open-prefs:hover {
-    background: var(--text);
-    color: var(--bg);
+.link-preview-footer button:hover {
+    color: var(--terminal-green);
+    background: #11161a;
 }
 
 
-/* =========================================================
-   MODALS / PREFERENCES
-   ========================================================= */
+/* ========================================================================== */
+/* INPUT                                                                      */
+/* ========================================================================== */
 
-.modal-panel {
-    background: var(--surface);
-    border: 2px solid var(--border);
-    border-radius: 0;
-    box-shadow: 0 0 20px rgba(0, 255, 102, 0.2);
+#bottom {
+    flex: 0 0 auto;
+
+    display: flex;
+    align-items: center;
+
+    height: 43px;
+
+    padding: 0 18px;
+
+    border-top: 1px solid var(--terminal-border);
+
+    background: var(--terminal-bg);
 }
 
-.form-field input, .form-field select {
-    background: var(--input);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 0;
+
+/*
+ * Terminal prompt.
+ */
+
+#bottom::before {
+    content: ">>>";
+
+    flex: 0 0 auto;
+
+    margin-right: 10px;
+
+    color: var(--terminal-green);
+
+    font-weight: 600;
 }
 
-.btn {
-    border-radius: 0;
-    border: 1px solid var(--border);
+
+/*
+ * Actual input becomes the terminal input.
+ */
+
+#msg {
+    flex: 1;
+
+    min-width: 0;
+
+    height: 100%;
+
+    padding: 0;
+
+    border: 0;
+    outline: 0;
+
+    background: transparent;
+
+    color: var(--terminal-fg);
+
+    font-family: var(--font);
+    font-size: 14px;
 }
 
-.btn-save {
-    background: var(--text);
-    color: var(--bg);
+#msg::placeholder {
+    color: var(--terminal-dim);
+    opacity: .7;
 }
 
-.btn-cancel {
-    background: var(--input);
-    color: var(--text);
+
+/*
+ * Don't show the GUI controls.
+ *
+ * Enter still triggers send() because your JS already handles it.
+ */
+
+#send-msg,
+#open-prefs,
+#upload {
+    display: none;
+}
+
+
+/* ========================================================================== */
+/* MODALS / CONTEXT MENUS                                                     */
+/* ========================================================================== */
+
+/*
+ * Keep these functional, but make them look like terminal menus rather than
+ * application dialogs.
+ */
+
+.modal-overlay,
+.blur-overlay {
+    background: rgba(0, 0, 0, .82) !important;
+
+    backdrop-filter: none !important;
+}
+
+.modal-panel,
+.context-menu {
+    border: 1px solid #303840 !important;
+    border-radius: 0 !important;
+
+    background: #090b0d !important;
+
+    box-shadow: 0 15px 50px rgba(0, 0, 0, .7) !important;
+
+    font-family: var(--font) !important;
+}
+
+
+/* Terminal prompt in menus */
+
+.modal-panel h2 {
+    color: var(--terminal-cyan);
+
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.modal-panel h2::before {
+    content: "$ ";
+
+    color: var(--terminal-green);
+}
+
+
+/* Context menu buttons */
+
+.context-menu .btn {
+    border-radius: 0 !important;
+
+    color: var(--terminal-fg) !important;
+
+    font-family: var(--font) !important;
+}
+
+.context-menu .btn:hover {
+    background: #151a1f !important;
+    color: var(--terminal-green) !important;
+}
+
+
+/* ========================================================================== */
+/* ROOM SELECT DROPDOWN                                                       */
+/* ========================================================================== */
+
+#room-selector option {
+    background: #090b0d;
+    color: var(--terminal-fg);
+}
+
+
+/* ========================================================================== */
+/* FOCUS / SELECTION                                                          */
+/* ========================================================================== */
+
+::selection {
+    background: #29443b;
+    color: white;
+}
+
+input:focus {
+    caret-color: var(--terminal-green);
+}
+
+
+/* ========================================================================== */
+/* LINKS                                                                      */
+/* ========================================================================== */
+
+/*
+ * Your message text isn't currently rendered as <a>, so this mainly affects
+ * actual anchors/embedded content if they appear later.
+ */
+
+a {
+    color: var(--terminal-cyan);
+    text-decoration: none;
+}
+
+a:hover {
+    color: white;
+    text-decoration: underline;
+}
+
+
+/*
+ * Give raw URL-looking messages a subtle terminal color via the preview
+ * container existing next to them.
+ */
+
+.message-container:has(.link-preview) .bubble {
+    color: var(--terminal-cyan);
+
+    cursor: help;
+}
+
+.message-container:has(.link-preview) .bubble:hover {
+    color: white;
+    text-decoration: underline;
+}
+
+
+/* ========================================================================== */
+/* TEMPORARY / PENDING MESSAGE                                                */
+/* ========================================================================== */
+
+.self-temp {
+    opacity: .55;
+}
+
+.self-temp .bubble::after {
+    content: " …";
+
+    color: var(--terminal-dim);
+}
+
+
+/* ========================================================================== */
+/* EDITING                                                                    */
+/* ========================================================================== */
+
+.editing-message {
+    outline: none !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+
+    background: #0c1013 !important;
+
+    box-shadow:
+        0 0 0 1px var(--terminal-green),
+        0 0 20px rgba(103, 232, 165, .08) !important;
+
+    padding: 2px 5px !important;
+}
+
+
+/* ========================================================================== */
+/* PUSH PROMPT                                                                */
+/* ========================================================================== */
+
+#push-prompt {
+    margin: 10px 0 20px;
+    padding: 10px 0;
+
+    border-left: 2px solid var(--terminal-yellow);
+
+    padding-left: 12px;
+
+    background: transparent;
+
+    color: var(--terminal-fg);
+
+    font-family: var(--font);
+}
+
+#push-prompt h3 {
+    margin: 0 0 5px;
+
+    color: var(--terminal-yellow);
+
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#push-confirmation,
+#stop-asking {
+    margin: 3px 0;
+
+    color: var(--terminal-dim);
+
+    cursor: pointer;
+}
+
+#push-confirmation:hover,
+#stop-asking:hover {
+    color: var(--terminal-green);
+}
+
+
+/* ========================================================================== */
+/* ANIMATION                                                                  */
+/* ========================================================================== */
+
+@keyframes terminal-line-in {
+    from {
+        opacity: 0;
+        transform: translateY(2px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* ========================================================================== */
+/* MOBILE                                                                     */
+/* ========================================================================== */
+
+@media (max-width: 600px) {
+
+    #top {
+        padding: 0 12px;
+    }
+
+    #chat {
+        padding: 16px 12px 24px;
+    }
+
+    #bottom {
+        padding: 0 12px;
+    }
+
+    .message-container {
+        font-size: 13px;
+    }
+
+    .bubble {
+        font-size: 13px;
+    }
+
+    .link-preview {
+        position: fixed;
+
+        left: 12px;
+        right: 12px;
+        bottom: 55px;
+        top: auto;
+
+        width: auto;
+    }
 }
