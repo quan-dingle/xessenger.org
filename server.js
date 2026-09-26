@@ -127,6 +127,11 @@ const server = http.createServer((req, res) => {
         res.writeHead(200, {"Content-Type": "text/plain"});
         res.end(fs.readFileSync("assets/geodata.json").toString()); return;
     }
+    if (req.url === "/manifest.json") {
+        res.writeHead(200, {"Content-Type": "application/json"});
+        res.end(fs.readFileSync("public/manifest.json")); return;
+    }
+
 
     if (req.url === "/api/create-room") {
         let data = "";
