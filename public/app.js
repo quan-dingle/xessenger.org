@@ -34,7 +34,7 @@ async function init() {
         document.cookie = `room=${activeRoom}; path=/`;
 
         roomName = roomsMap[activeRoom] || activeRoom;
-        document.title = `XSngr - ${roomName}`;
+        document.title = `XS - ${roomName}`;
 
         const roomSelector = document.getElementById("room-selector");
         if (roomSelector) {
@@ -68,7 +68,7 @@ async function start() {
         history.push(data);
         addMessage(data);
     };
-    stream.onerror = e=> {Object.entries(document.getElementsByClassName("message-container")).forEach((k,v) => k[1].remove())}
+    stream.onerror = e=> {Object.entries(document.getElementsByClassName("message-container")).forEach((k,v) => k[1].remove());history=[]}
 }
 void start();
 
@@ -268,7 +268,7 @@ function createPreviewElement(content, previewLink = "") {
     }
 
     print("recv unk link - passive / no embed");
-    return null;
+    return preview;
 }
 
 // message edits and deletions
@@ -527,8 +527,8 @@ function open_prefs() {
         <div class="setting"><label class="settings-switch"><p>Push Notifications</p><input type="checkbox" id="p-push" ${p.pushNotifications?"checked":""}><span class="switch-slider"></span></label></div>
         <div class="form-field"><label>Other Bubble</label><input type="color" id="p-bub" value="${p.bub||'#2b2d31'}"></div>
         <div class="form-field"><label>My Bubble</label><input type="color" id="p-mybub" value="${p.myBub||'#2563eb'}"></div>
-        <div class="form-field"><label>Opacity</label><input type="range" id="p-alpha" min="0.1" max="1" step="0.05" value="${p.alpha||'0.75'}"></div>
-        <div class="form-field"><label>Font Size</label><input type="range" id="p-fsize" min="0.5" max="2" step="0.01" value="${p.fsize||'1.0'}"></div>
+        <div class="form-field"><label>Opacity</label><input type="range" id="p-alpha" min="0.1" max="1" step="0.005" value="${p.alpha||'0.75'}"></div>
+        <div class="form-field"><label>Font Size</label><input type="range" id="p-fsize" min="0.5" max="2" step="0.001" value="${p.fsize||'1.0'}"></div>
         <div class="form-field"><label>Aliases (user=alias,...)</label><input type="text" id="p-alias" value="${als}"></div>
         <div class="btn-group"><button class="btn-cancel btn" onclick="close_prefs()">Cancel</button><button class="btn-save btn" onclick="save_prefs()">Save</button></div></div>`;
 
@@ -843,7 +843,10 @@ document.getElementById("chat-icon").onclick = showRoomOverview;
 
 //mssg manipulating utils
 function editMessage(container, bg) {
-    editingMessage = true
+    editingMessage = true;
+	const composer = document.getElementById("msg");
+	composer.inert = true;
+    
     const bubble = container.querySelector(".bubble") || container;
     const oldText = bubble.textContent;
 
@@ -872,6 +875,7 @@ function editMessage(container, bg) {
     input.scrollIntoView({behavior: "smooth",block: "end"});
 
     const finish = () => {
+    	composer.inert = false;
         bubble.classList.remove("editing-message");
         bubble.classList.add("self-temp");
         bubble.textContent = input.value;

@@ -1073,6 +1073,29 @@ body.light-mode .time {
   object-fit: cover;
 }
 
+.attachment-bubble:fullscreen {
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+
+    width: 100vw;
+    height: 100vh;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.attachment-bubble:fullscreen img {
+    max-width: 90vw;
+    max-height: 90vh;
+    width: auto;
+    height: auto;
+
+    object-fit: contain;
+    border-radius: 10px;
+}
+
 
 /* =========================================================
    BOTTOM BAR

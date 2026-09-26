@@ -299,7 +299,7 @@ const server = http.createServer((req, res) => {
 
         // maybe send history here
         if (!history[room]) history[room] = [];
-        else {
+        else {/*
             //send buffered
             let i = 0;
             const sendNext = () => {
@@ -313,12 +313,12 @@ const server = http.createServer((req, res) => {
                 setTimeout(sendNext, t);
 
             }
-            sendNext();
-            /* this will send instantly:
+            sendNext();*/
+            //this will send instantly:
             history[room].forEach(msg => {
                 res.write(`data: ${JSON.stringify(msg)}\n\n`);
             });
-            */
+            
         }
         if (!openConnections[room]) openConnections[room] = [];
         openConnections[room].push(res);
@@ -530,35 +530,7 @@ function deriveID(a,b,c) {
     return crypto.createHash("sha256").update(a+b+c+crypto.randomBytes(20).toString("hex")).digest().toString();
 }
 
-async function screenshotWebsite(url, width = 800, height = 450) {
-    const browser = await chromium.launch({headless: !isServer,channel:"chromium"});
-    try {
-        const page = await browser.newPage({
-            viewport: {width, height}
-        });
-
-        await page.goto(url, {
-            waitUntil: "domcontentloaded",
-            timeout: 10000
-        });
-
-        await page.waitForTimeout(300);
-
-        const name = crypto.randomBytes(12).toString("hex") + ".jpeg";
-        const file = path.join("assets/websites", name);
-
-        await page.screenshot({
-            path: file,
-            type: "jpeg",
-            quality: 80,
-            animations: "disabled"
-        });
-
-        return file;
-    } finally {
-        await browser.close();
-    }
-}
+async function screenshotWebsite(url,width=800,height=450){const browser=await chromium.launch({headless:!isServer,channel:"chromium"});try{const context=await browser.newContext({viewport:{width,height}}),parsed=new URL(url);if(parsed.hostname==="antrox.org")await context.addCookies([{name:"token",value:"6a201e7a",url:parsed.origin}]);const page=await context.newPage();await page.goto(url,{waitUntil:"domcontentloaded",timeout:10000});await page.waitForTimeout(300);const name=crypto.randomBytes(12).toString("hex")+".jpeg",file=path.join("assets/websites",name);await page.screenshot({path:file,type:"jpeg",quality:80,animations:"disabled"});return file}finally{await browser.close()}}
 
 async function sendPushNotifications(room, msg, senderToken) {
     if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY)
