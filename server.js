@@ -214,12 +214,13 @@ const server = http.createServer((req, res) => {
 
     if (req.url.startsWith("/api/room-data")) {
         const r = roomsDB[room];
+        console.log(user.name, "requested data from room", r.alias)
         res.writeHead(200, {"Content-Type": "application/json"});
         res.end(JSON.stringify({
             id:room,
             alias:r.alias,
             description: r.description,
-            members: [r.members.map(m=>DB.users[m].name)],
+            members: r.members.map(m=>DB.users[m].name),
             admins: [r.created.creator],
             created:r.created.timestamp
         })); return;
@@ -458,7 +459,7 @@ const server = http.createServer((req, res) => {
 
     // maybe log for fuzzer detection. definitely scary if anyone lands here
     res.writeHead(400, { "Content-Type": "text/html" });
-    res.end(fs.readFileSync("patterns/background.html"))
+    res.end(fs.readFileSync("patterns/Gravity.html"))
     //res.end("what the fuck did you request?");
 
 }).listen(PORT,"127.0.0.1");

@@ -680,6 +680,7 @@ async function showRoomOverview(id) {
         }
 
         const room = await res.json();
+        print(room.members, Array.isArray(room.members), room.members?.length);
         print(room);
 
         panel.innerHTML = `
@@ -718,24 +719,29 @@ async function showRoomOverview(id) {
             </div>
 
             <div class="room-members">
-                ${(room.members || []).map(name => `
-                    <div class="room-member ${room.admins?.includes(name) ? "admin" : ""}">
-                        <div class="member-pfp">
-                            ${escapeHtml(name ?? "?")}
-                        </div>
+    ${(room.members || []).map(name => {
+            const parts = name.split("-");
+            const initials = parts.map(part => part[0]).join("").toUpperCase();
 
-                        <span class="member-name">
-                            ${escapeHtml(aliases[name] || name)}
-                        </span>
+            return `
+            <div class="room-member ${room.admins?.includes(name) ? "admin" : ""}">
+                <div class="member-pfp">
+                    ${escapeHtml(initials)}
+                </div>
 
-                        ${
-            room.admins?.includes(name)
-                ? `<span class="member-role">ADMIN</span>`
-                : ""
-        }
-                    </div>
-                `).join("")}
+                <span class="member-name">
+                    ${escapeHtml(aliases[name] || name)}
+                </span>
+
+                ${
+                room.admins?.includes(name)
+                    ? `<span class="member-role">ADMIN</span>`
+                    : ""
+            }
             </div>
+        `;
+        }).join("")}
+</div>
         `;
 
         panel.querySelector(".room-close").onclick = close;
