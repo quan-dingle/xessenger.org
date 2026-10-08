@@ -722,7 +722,7 @@ async function showRoomOverview(id) {
             const initials = parts.map(part => part[0]).join("").toUpperCase();
 
             return `
-            <div class="room-member ${room.admins?.includes(name) ? "admin" : ""}">
+            <div class="room-member ${room.admins?.includes(name) ? "admin" : ""}" data-name="${name}">
                 <div class="member-pfp">
                     ${escapeHtml(initials)}
                 </div>
@@ -744,6 +744,7 @@ async function showRoomOverview(id) {
 </div>
         `;
 
+        panel.querySelectorAll(".member-kick").forEach(b=>{b.onclick=()=>kickUser(b,panel);});
         panel.querySelector(".room-close").onclick = close;
 
         const addUser = panel.querySelector("#room-add-user");
@@ -760,6 +761,17 @@ async function showRoomOverview(id) {
             </div>
         `;
     }
+}
+
+async function kickUser(b) {
+    const name = b.parentElement.dataset.name;
+    print("kicking member", name);
+    const res = await fetch("/api/kick-user", {method: "POST", body: JSON.stringify([name])});
+    if(!res.ok) return alert("Failed to kick user: "+ await res.text());
+    b.parentElement.remove();
+    //this actually reloads it:
+    //panel.parentElement.remove();
+    //await showRoomOverview(activeRoom);
 }
 
 async function showAddRoomUser(roomId, panel) {

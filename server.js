@@ -229,18 +229,43 @@ const server = http.createServer((req, res) => {
         req.on("end", () => { try {
             const newMembers = JSON.parse(body);
             newMembers.forEach((m) => {
-                const ntoken = Object.entries(DB.users).find(([token, user]) => user.name === m)?.[0];
-                if (!ntoken) throw new Error("User does not exist");
-                if(roomsDB[room].members.includes(ntoken)) throw new Error("Already a member");
-                console.log(token,"added",ntoken,"to room",room);
-                DB.users[ntoken].rooms.push(room);
-                roomsDB[room].members.push(ntoken);
+                const nuToken = Object.entries(DB.users).find(([token, user]) => user.name === m)?.[0];
+                if (!nuToken) throw new Error("User does not exist");
+                if(roomsDB[room].members.includes(nuToken)) throw new Error("Already a member");
+                console.log(token,"added",nuToken,"to room",room);
+                DB.users[nuToken].rooms.push(room);
+                roomsDB[room].members.push(nuToken);
                 dumpDBs();
             })
             res.writeHead(200, {"Content-Type": "text/plain"});
             res.end("OK");
         } catch(err) {
             console.log(err,"- received invalid member invitation request from",token+":",body);
+            res.writeHead(403, {"Content-Type": "text/plain"});
+            res.end(err.toString());
+        }});
+        return;
+    }
+
+    if (req.url === "/api/kick-user") {
+        let body = "";
+        req.on("data", chunk => {body += chunk;});
+        req.on("end", () => { try {
+            const remMembers = JSON.parse(body);
+            remMembers.forEach((m) => {
+                if(![roomsDB[room].created.creator].includes(token)) {throw new Error("Permission denied")}
+                const rmToken = Object.entries(DB.users).find(([token, user]) => user.name === m)?.[0];
+                if (!rmToken) throw new Error("User does not exist");
+                if (!roomsDB[room].members.includes(rmToken)) throw new Error("Not a member");
+                console.log(token,"kicked",rmToken,"from room",room);
+                DB.users[rmToken].rooms = DB.users[rmToken].rooms.filter(id => id !== room);
+                roomsDB[room].members = roomsDB[room].members.filter(id => id !== rmToken);
+                dumpDBs();
+            })
+            res.writeHead(200, {"Content-Type": "text/plain"});
+            res.end("OK");
+        } catch(err) {
+            console.log(err,"- received invalid member removal request from",token+":",body);
             res.writeHead(403, {"Content-Type": "text/plain"});
             res.end(err.toString());
         }});
@@ -474,21 +499,6 @@ const server = http.createServer((req, res) => {
 
 }).listen(PORT,"127.0.0.1");
 
-
-function addUserToRoom(userid,roomid,initiator=null) {
-    if (roomsDB[roomid].members.includes(userid)) return false
-    DB[userid].rooms.push(roomid);
-    roomsDB[roomid].members.push(userid);
-    roomsDB[roomid].size += 1;
-    dumpDBs();
-}
-
-function leaveRoom(userid, roomid, initiator=null) {
-    if (!DB[userid].rooms.includes(roomid)) return false;
-    DB[userid].rooms = DB[userid].rooms.filter(id => id !== roomid);
-    roomsDB[roomid].members = roomsDB[roomid].members.filter(id => id !== userid);
-    dumpDBs();
-}
 
 function createRoom(token, name=null, desc=null, privacy=null) {
     const roomId = crypto.randomBytes(16).toString("hex");

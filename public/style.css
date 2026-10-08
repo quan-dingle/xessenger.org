@@ -423,9 +423,17 @@ button:active {
 }
 
 .member-kick {
-  color: #fcd37d;
+  color: #fc7d7d;
+  border: 1px solid #fc7d7d;
+  border-radius: 5px;
+  padding: 2px 10px 5px 10px;
   font-size: 10px;
   font-weight: 600;
+}
+
+.member-kick:hover {
+  background-color: rgba(255,50,50,.15);
+  filter: brightness(1.5);
 }
 
 .room-add-user-panel {
