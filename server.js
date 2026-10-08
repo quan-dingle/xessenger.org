@@ -230,7 +230,8 @@ const server = http.createServer((req, res) => {
             const newMembers = JSON.parse(body);
             newMembers.forEach((m) => {
                 const ntoken = Object.entries(DB.users).find(([token, user]) => user.name === m)?.[0];
-                if (!ntoken) throw new Error("user does not exist");
+                if (!ntoken) throw new Error("User does not exist");
+                if(roomsDB[room].members.includes(ntoken)) throw new Error("Already a member");
                 console.log(token,"added",ntoken,"to room",room);
                 DB.users[ntoken].rooms.push(room);
                 roomsDB[room].members.push(ntoken);
@@ -241,7 +242,7 @@ const server = http.createServer((req, res) => {
         } catch(err) {
             console.log(err,"- received invalid member invitation request from",token+":",body);
             res.writeHead(403, {"Content-Type": "text/plain"});
-            res.end("BAD");
+            res.end(err.toString());
         }});
         return;
     }

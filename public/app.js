@@ -760,7 +760,7 @@ async function showRoomOverview(id) {
     }
 }
 
-function showAddRoomUser(roomId, panel) {
+async function showAddRoomUser(roomId, panel) {
     const old = panel.querySelector(".room-add-user-panel");
     if (old) old.remove();
 
@@ -810,7 +810,7 @@ function showAddRoomUser(roomId, panel) {
             });
 
             if (!res.ok) {
-                status.textContent = `error: HTTP ${res.status}`;
+                status.textContent = `Error: `+await res.text();
                 button.disabled = false;
                 button.textContent = "ADD";
                 return;
@@ -819,6 +819,7 @@ function showAddRoomUser(roomId, panel) {
             status.textContent = "user added";
 
             setTimeout(() => {
+                panel.parentElement.remove();
                 showRoomOverview(roomId);
             }, 300);
 
