@@ -10,8 +10,9 @@ loadHistory();
 
 /*
 TODO:|\/\|\/\|\/\|\/\|\/\|\/\|\/
-- migrate history loading from /stream endpoint on connection to /history to avoid duplicate sent messages
+- migrate history loading from /stream endpoint to /history because stream keeps failing
 - user and server settings
+- room creation
 - privacy types
 - better room selector
 */
@@ -25,8 +26,6 @@ import path from "path";
 import crypto from "crypto";
 import fs from "fs";
 import webpush from "web-push";
-//import {promisify} from "util";
-//import {execFile} from "child_process";
 
 let DB = JSON.parse(fs.readFileSync("database.json"));
 let roomsDB = JSON.parse(fs.readFileSync("rooms.json"));
@@ -220,7 +219,7 @@ const server = http.createServer((req, res) => {
             id:room,
             alias:r.alias,
             description: r.description,
-            members: [r.members.map(m=>DB.users[m])],
+            members: [r.members.map(m=>DB.users[m].name)],
             admins: [r.created.creator],
             created:r.created.timestamp
         })); return;

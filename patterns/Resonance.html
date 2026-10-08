@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>resonance</title>
+    <style>
+        :root {
+            --ui-bg: rgba(12, 12, 12, 0.52);
+            --ui-border: rgba(255, 255, 255, 0.11);
+            --ui-text: rgba(255, 255, 255, 0.82);
+            --ui-muted: rgba(255, 255, 255, 0.42);
+            --ui-hover: rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: #050508;
+            color: #fff;
+            font-family: monospace;
+            user-select: none;
+        }
+
+        #canvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        /* MENU BUTTON */
+        #menuButton {
+            position: fixed;
+            top: 18px;
+            left: 18px;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--ui-border);
+            border-radius: 50%;
+            color: rgba(255, 255, 255, 0.72);
+            background: rgba(10, 10, 10, 0.28);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            cursor: pointer;
+            z-index: 20;
+            transition: opacity 0.8s ease, transform 0.8s ease, background 0.2s ease;
+        }
+
+        #menuButton:hover {
+            background: rgba(255, 255, 255, 0.09);
+            color: #fff;
+        }
+
+        #menuButton.hidden {
+            opacity: 0;
+            transform: scale(0.82);
+            pointer-events: none;
+        }
+
+        #menuIcon {
+            font-size: 17px;
+            line-height: 1;
+            transition: transform 0.3s ease;
+        }
+
+        #menuButton.open #menuIcon {
+            transform: rotate(90deg);
+        }
+
+        /* CONTROL PANEL */
+        #controls {
+            position: fixed;
+            top: 18px;
+            left: 18px;
+            width: min(330px, calc(100vw - 36px));
+            max-height: calc(100vh - 36px);
+            padding: 20px;
+            background: var(--ui-bg);
+            border: 1px solid var(--ui-border);
+            border-radius: 18px;
+            backdrop-filter: blur(24px) saturate(120%);
+            -webkit-backdrop-filter: blur(24px) saturate(120%);
+            box-shadow: 0 20px 70px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+            z-index: 15;
+            overflow-y: auto;
+            opacity: 0;
+            transform: translateY(-8px) scale(0.97);
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        #controls.open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+
+        #controls::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        #controls::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 10px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .panel-title {
+            font-size: 14px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .panel-subtitle {
+            margin-top: 4px;
+            font-size: 10px;
+            color: var(--ui-muted);
+            letter-spacing: 0.04em;
+        }
+
+        #closeButton {
+            width: 28px;
+            height: 28px;
+            border: 0;
+            border-radius: 50%;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 18px;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        #closeButton:hover {
+            background: var(--ui-hover);
+            color: #fff;
+        }
+
+        /* SECTIONS & CONTROLS */
+        .section {
+            margin-bottom: 21px;
+        }
+
+        .section-title {
+            margin-bottom: 11px;
+            font-size: 9px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.32);
+        }
+
+        .control {
+            margin-bottom: 14px;
+        }
+
+        .control-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 7px;
+            color: rgba(255, 255, 255, 0.62);
+            font-size: 11px;
+        }
+
+        .value {
+            color: rgba(255, 255, 255, 0.42);
+            min-width: 50px;
+            text-align: right;
+        }
+
+        input[type="range"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 100%;
+            height: 2px;
+            margin: 0;
+            background: rgba(255, 255, 255, 0.14);
+            border-radius: 10px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            background: #111;
+            transition: transform 0.15s ease;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 11px;
+            height: 11px;
+
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+
+            background: #111;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        .color-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .color-control {
+            flex: 1;
+        }
+
+        input[type="color"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 100%;
+            height: 30px;
+            padding: 3px;
+            border: 1px solid var(--ui-border);
+            border-radius: 7px;
+            background: rgba(255, 255, 255, 0.04);
+            cursor: pointer;
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 4px; }
+
+        .button-row {
+            display: flex;
+            gap: 7px;
+        }
+
+        .action {
+            flex: 1;
+            height: 32px;
+            border: 1px solid var(--ui-border);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.035);
+            color: rgba(255, 255, 255, 0.55);
+            font-family: inherit;
+            font-size: 10px;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .action:hover {
+            background: rgba(255, 255, 255, 0.09);
+            color: #fff;
+        }
+
+        #hint {
+            position: fixed;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.25);
+            pointer-events: none;
+            letter-spacing: 0.08em;
+            transition: opacity 1.5s ease;
+        }
+
+        @media (max-width: 500px) {
+            #controls {
+                top: 10px;
+                left: 10px;
+                width: calc(100vw - 20px);
+                max-height: calc(100vh - 20px);
+            }
+            #menuButton {
+                top: 10px;
+                left: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<button id="menuButton" aria-label="Open controls">
+    <span id="menuIcon">☰</span>
+</button>
+
+<div id="hint">click anywhere to spawn resonant orbits</div>
+
+<div id="controls">
+    <div class="panel-header">
+        <div>
+            <div class="panel-title">resonance</div>
+            <div class="panel-subtitle">tune harmonic geometries</div>
+        </div>
+        <button id="closeButton">×</button>
+    </div>
+
+    <!-- ORBITS -->
+    <div class="section">
+        <div class="section-title">orbits</div>
+        <div class="control">
+            <div class="control-label">
+                <span>speed scale</span>
+                <span class="value" id="speedValue"></span>
+            </div>
+            <input id="speed" type="range" min="0.1" max="3" step="0.05" value="1.0">
+        </div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>trail memory</span>
+                <span class="value" id="fadeValue"></span>
+            </div>
+            <input id="fade" type="range" min="0.01" max="0.3" step="0.005" value="0.04">
+        </div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>harmonics ratio</span>
+                <span class="value" id="harmonicValue"></span>
+            </div>
+            <input id="harmonic" type="range" min="1" max="12" step="1" value="3">
+        </div>
+    </div>
+
+    <!-- VISUALS -->
+    <div class="section">
+        <div class="section-title">appearance</div>
+        <div class="control">
+            <div class="control-label">
+                <span>line width</span>
+                <span class="value" id="lineWidthValue"></span>
+            </div>
+            <input id="lineWidth" type="range" min="0.2" max="3" step="0.1" value="0.8">
+        </div>
+
+        <div class="control">
+            <div class="control-label">
+                <span>pulse strength</span>
+                <span class="value" id="pulseValue"></span>
+            </div>
+            <input id="pulse" type="range" min="0" max="1" step="0.05" value="0.4">
+        </div>
+
+        <div class="color-row">
+            <div class="color-control">
+                <div class="control-label"><span>core color</span></div>
+                <input id="color1" type="color" value="#4a90e2">
+            </div>
+            <div class="color-control">
+                <div class="control-label"><span>wave color</span></div>
+                <input id="color2" type="color" value="#ffffff">
+            </div>
+        </div>
+    </div>
+
+    <!-- SYSTEM -->
+    <div class="section">
+        <div class="section-title">system</div>
+        <div class="button-row">
+            <button class="action" id="clear">clear</button>
+            <button class="action" id="reset">reset</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* =====================================================
+       UI & CONTROLS
+    ===================================================== */
+    const menuButton = document.getElementById("menuButton");
+    const closeButton = document.getElementById("closeButton");
+    const controls = document.getElementById("controls");
+    const hint = document.getElementById("hint");
+
+    let menuOpen = false;
+    let idleTimer;
+
+    function openMenu() {
+        menuOpen = true;
+        controls.classList.add("open");
+        menuButton.classList.add("open");
+        clearTimeout(idleTimer);
+    }
+
+    function closeMenu() {
+        menuOpen = false;
+        controls.classList.remove("open");
+        menuButton.classList.remove("open");
+        resetIdleTimer();
+    }
+
+    menuButton.addEventListener("click", e => {
+        e.stopPropagation();
+        menuOpen ? closeMenu() : openMenu();
+    });
+
+    closeButton.addEventListener("click", e => {
+        e.stopPropagation();
+        closeMenu();
+    });
+
+    function resetIdleTimer() {
+        clearTimeout(idleTimer);
+        if (menuOpen) return;
+        menuButton.classList.remove("hidden");
+        idleTimer = setTimeout(() => {
+            if (!menuOpen) menuButton.classList.add("hidden");
+        }, 2800);
+    }
+
+    document.addEventListener("mousemove", e => {
+        if (e.clientX < 100 && e.clientY < 100) resetIdleTimer();
+        resetIdleTimer();
+    });
+    resetIdleTimer();
+
+    setTimeout(() => { hint.style.opacity = '0'; }, 5000);
+
+    /* =====================================================
+       SETTINGS
+    ===================================================== */
+    const DEFAULTS = {
+        speed: 1.0,
+        fade: 0.04,
+        harmonic: 3,
+        lineWidth: 0.8,
+        pulse: 0.4,
+        color1: "#4a90e2",
+        color2: "#ffffff"
+    };
+
+    const settings = { ...DEFAULTS };
+
+    const controlsMap = {
+        speed: { value: "speedValue", format: v => Number(v).toFixed(2) },
+        fade: { value: "fadeValue", format: v => Number(v).toFixed(3) },
+        harmonic: { value: "harmonicValue", format: v => Math.round(v) },
+        lineWidth: { value: "lineWidthValue", format: v => Number(v).toFixed(1) },
+        pulse: { value: "pulseValue", format: v => Number(v).toFixed(2) }
+    };
+
+    for (const [id, config] of Object.entries(controlsMap)) {
+        const input = document.getElementById(id);
+        const output = document.getElementById(config.value);
+
+        input.addEventListener("input", () => {
+            settings[id] = parseFloat(input.value);
+            output.textContent = config.format(settings[id]);
+        });
+        settings[id] = parseFloat(input.value);
+        output.textContent = config.format(settings[id]);
+    }
+
+    document.getElementById("color1").addEventListener("input", e => settings.color1 = e.target.value);
+    document.getElementById("color2").addEventListener("input", e => settings.color2 = e.target.value);
+
+    /* =====================================================
+       CANVAS & SIMULATION
+    ===================================================== */
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    let width, height, cx, cy;
+    let nodes = [];
+    let pulses = [];
+
+    function resize() {
+        const dpr = window.devicePixelRatio || 1;
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        cx = width / 2;
+        cy = height / 2;
+        ctx.fillStyle = "#050508";
+        ctx.fillRect(0, 0, width, height);
+    }
+
+    window.addEventListener("resize", resize);
+    resize();
+
+    function hexToRgb(hex) {
+        hex = hex.replace("#", "");
+        return {
+            r: parseInt(hex.substring(0, 2), 16),
+            g: parseInt(hex.substring(2, 4), 16),
+            b: parseInt(hex.substring(4, 6), 16)
+        };
+    }
+
+    class OrbitNode {
+        constructor(x, y) {
+            const dx = x - cx;
+            const dy = y - cy;
+            this.radius = Math.sqrt(dx * dx + dy * dy);
+            this.angle = Math.atan2(dy, dx);
+            this.subAngle = 0;
+            this.subRadius = Math.max(15, this.radius * 0.25);
+            this.speed = (0.01 + (1 / Math.max(this.radius, 20)) * 2);
+            this.history = [];
+        }
+
+        update() {
+            const currentSpeed = this.speed * settings.speed;
+            this.angle += currentSpeed;
+            this.subAngle += currentSpeed * settings.harmonic;
+
+            const mainX = cx + Math.cos(this.angle) * this.radius;
+            const mainY = cy + Math.sin(this.angle) * this.radius;
+
+            const px = mainX + Math.cos(this.subAngle) * this.subRadius;
+            const py = mainY + Math.sin(this.subAngle) * this.subRadius;
+
+            this.history.push({ x: px, y: py });
+            if (this.history.length > 2) this.history.shift();
+
+            // Spawn visual harmonic pulses periodically
+            if (Math.random() < 0.02 * settings.pulse) {
+                pulses.push({
+                    x: px,
+                    y: py,
+                    radius: 2,
+                    maxRadius: 40 + Math.random() * 30,
+                    alpha: 0.6
+                });
+            }
+
+            return { px, py, mainX, mainY };
+        }
+    }
+
+    // Default starting nodes
+    function initPreset() {
+        nodes = [];
+        const base = Math.min(width, height) * 0.25;
+        nodes.push(new OrbitNode(cx + base, cy));
+        nodes.push(new OrbitNode(cx, cy - base * 1.5));
+    }
+    initPreset();
+
+    /* =====================================================
+       INTERACTION
+    ===================================================== */
+    canvas.addEventListener("click", e => {
+        if (e.target !== canvas) return;
+        nodes.push(new OrbitNode(e.clientX, e.clientY));
+    });
+
+    document.getElementById("clear").addEventListener("click", () => {
+        nodes = [];
+        pulses = [];
+        ctx.fillStyle = "#050508";
+        ctx.fillRect(0, 0, width, height);
+    });
+
+    document.getElementById("reset").addEventListener("click", () => {
+        for (const [key, value] of Object.entries(DEFAULTS)) {
+            settings[key] = value;
+            const input = document.getElementById(key);
+            if (input) input.value = value;
+            const config = controlsMap[key];
+            if (config) {
+                document.getElementById(config.value).textContent = config.format(value);
+            }
+        }
+        document.getElementById("color1").value = DEFAULTS.color1;
+        document.getElementById("color2").value = DEFAULTS.color2;
+        initPreset();
+        ctx.fillStyle = "#050508";
+        ctx.fillRect(0, 0, width, height);
+    });
+
+    /* =====================================================
+       ANIMATION LOOP
+    ===================================================== */
+    let loop;
+
+    function frame() {
+        // Soft trail fade out
+        ctx.fillStyle = `rgba(5, 5, 8, ${settings.fade})`;
+        ctx.fillRect(0, 0, width, height);
+
+        const c1 = hexToRgb(settings.color1);
+        const c2 = hexToRgb(settings.color2);
+
+        // Center star
+        ctx.beginPath();
+        ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${c2.r}, ${c2.g}, ${c2.b}, 0.5)`;
+        ctx.fill();
+
+        // Update & draw pulses
+        for (let i = pulses.length - 1; i >= 0; i--) {
+            const p = pulses[i];
+            p.radius += 0.8;
+            p.alpha -= 0.015;
+
+            if (p.alpha <= 0 || p.radius >= p.maxRadius) {
+                pulses.splice(i, 1);
+                continue;
+            }
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(${c2.r}, ${c2.g}, ${c2.b}, ${p.alpha * 0.3})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+        }
+
+        // Update and draw orbit paths
+        const currentPoints = [];
+        nodes.forEach(node => {
+            const pos = node.update();
+            currentPoints.push(pos);
+
+            if (node.history.length >= 2) {
+                ctx.beginPath();
+                ctx.moveTo(node.history[0].x, node.history[0].y);
+                ctx.lineTo(node.history[1].x, node.history[1].y);
+                ctx.strokeStyle = `rgba(${c1.r}, ${c1.g}, ${c1.b}, 0.85)`;
+                ctx.lineWidth = settings.lineWidth;
+                ctx.stroke();
+            }
+        });
+
+        // Draw harmonic connections between orbits
+        const len = currentPoints.length;
+        for (let i = 0; i < len; i++) {
+            for (let j = i + 1; j < len; j++) {
+                const p1 = currentPoints[i];
+                const p2 = currentPoints[j];
+                const dx = p1.px - p2.px;
+                const dy = p1.py - p2.py;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < 220) {
+                    const alpha = (1 - dist / 220) * 0.25;
+                    ctx.beginPath();
+                    ctx.moveTo(p1.px, p1.py);
+                    ctx.lineTo(p2.px, p2.py);
+                    ctx.strokeStyle = `rgba(${c2.r}, ${c2.g}, ${c2.b}, ${alpha})`;
+                    ctx.lineWidth = settings.lineWidth * 0.6;
+                    ctx.stroke();
+                }
+            }
+        }
+
+        loop = requestAnimationFrame(frame);
+    }
+
+    loop = requestAnimationFrame(frame);
+</script>
+</body>
+</html>

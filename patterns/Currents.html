@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>currents</title>
+    <style>
+        :root {
+            --ui-bg: rgba(12, 12, 12, 0.52);
+            --ui-border: rgba(255, 255, 255, 0.11);
+            --ui-text: rgba(255, 255, 255, 0.82);
+            --ui-muted: rgba(255, 255, 255, 0.42);
+            --ui-hover: rgba(255, 255, 255, 0.08);
+            --bg-color: #030406;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: var(--bg-color);
+            color: #fff;
+            font-family: monospace;
+            user-select: none;
+        }
+
+        #canvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        /* --------------------------------------------------
+           MENU BUTTON
+        -------------------------------------------------- */
+        #menuButton {
+            position: fixed;
+            top: 18px;
+            left: 18px;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--ui-border);
+            border-radius: 50%;
+            color: rgba(255, 255, 255, 0.72);
+            background: rgba(10, 10, 10, 0.28);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            cursor: pointer;
+            z-index: 20;
+            transition: opacity 0.8s ease, transform 0.8s ease, background 0.2s ease;
+        }
+
+        #menuButton:hover {
+            background: rgba(255, 255, 255, 0.09);
+            color: #fff;
+        }
+
+        #menuButton.hidden {
+            opacity: 0;
+            transform: scale(0.82);
+            pointer-events: none;
+        }
+
+        #menuIcon {
+            font-size: 17px;
+            line-height: 1;
+            transition: transform 0.3s ease;
+        }
+
+        #menuButton.open #menuIcon {
+            transform: rotate(90deg);
+        }
+
+        /* --------------------------------------------------
+           CONTROL PANEL
+        -------------------------------------------------- */
+        #controls {
+            position: fixed;
+            top: 18px;
+            left: 18px;
+            width: min(330px, calc(100vw - 36px));
+            max-height: calc(100vh - 36px);
+            padding: 20px;
+            background: var(--ui-bg);
+            border: 1px solid var(--ui-border);
+            border-radius: 18px;
+            backdrop-filter: blur(24px) saturate(120%);
+            -webkit-backdrop-filter: blur(24px) saturate(120%);
+            box-shadow: 0 20px 70px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+            z-index: 15;
+            overflow-y: auto;
+            opacity: 0;
+            transform: translateY(-8px) scale(0.97);
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        #controls.open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+
+        #controls::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        #controls::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 10px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .panel-title {
+            font-size: 14px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .panel-subtitle {
+            margin-top: 4px;
+            font-size: 10px;
+            color: var(--ui-muted);
+            letter-spacing: 0.04em;
+        }
+
+        #closeButton {
+            width: 28px;
+            height: 28px;
+            border: 0;
+            border-radius: 50%;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 18px;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        #closeButton:hover {
+            background: var(--ui-hover);
+            color: #fff;
+        }
+
+        /* --------------------------------------------------
+           SECTIONS
+        -------------------------------------------------- */
+        .section {
+            margin-bottom: 21px;
+        }
+
+        .section-title {
+            margin-bottom: 11px;
+            font-size: 9px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.32);
+        }
+
+        .control {
+            margin-bottom: 14px;
+        }
+
+        .control-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 7px;
+            color: rgba(255, 255, 255, 0.62);
+            font-size: 11px;
+        }
+
+        .value {
+            color: rgba(255, 255, 255, 0.42);
+            min-width: 50px;
+            text-align: right;
+        }
+
+        /* --------------------------------------------------
+           RANGE SLIDERS (CROSS-BROWSER FIXES)
+        -------------------------------------------------- */
+        input[type="range"] {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            width: 100%;
+            height: 12px; /* Touch target size */
+            margin: 0;
+            background: transparent;
+            outline: none;
+            cursor: pointer;
+        }
+
+        /* WebKit Track */
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.14);
+            border-radius: 10px;
+        }
+
+        /* Firefox Track */
+        input[type="range"]::-moz-range-track {
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.14);
+            border-radius: 10px;
+        }
+
+        /* WebKit Thumb */
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 11px;
+            height: 11px;
+            margin-top: -4.5px; /* (Track height / 2) - (Thumb height / 2) */
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            background: #111;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.04);
+            transition: transform 0.15s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        /* Firefox Thumb */
+        input[type="range"]::-moz-range-thumb {
+            appearance: none;
+            -moz-appearance: none;
+            width: 9px; /* Firefox includes border in width calculation differently sometimes, adjusted for visual match */
+            height: 9px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            background: #111;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.04);
+            transition: transform 0.15s ease;
+        }
+
+        input[type="range"]::-moz-range-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        /* --------------------------------------------------
+           COLOR INPUTS & BUTTONS
+        -------------------------------------------------- */
+        .color-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .color-control {
+            flex: 1;
+        }
+
+        input[type="color"] {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            width: 100%;
+            height: 30px;
+            padding: 3px;
+            border: 1px solid var(--ui-border);
+            border-radius: 7px;
+            background: rgba(255, 255, 255, 0.04);
+            cursor: pointer;
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 4px; }
+        input[type="color"]::-moz-color-swatch { border: 0; border-radius: 4px; }
+
+        .button-row {
+            display: flex;
+            gap: 7px;
+        }
+
+        .action {
+            flex: 1;
+            height: 32px;
+            border: 1px solid var(--ui-border);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.035);
+            color: rgba(255, 255, 255, 0.55);
+            font-family: inherit;
+            font-size: 10px;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .action:hover {
+            background: rgba(255, 255, 255, 0.09);
+            color: #fff;
+        }
+
+        #hint {
+            position: fixed;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.25);
+            pointer-events: none;
+            letter-spacing: 0.08em;
+            transition: opacity 1.5s ease;
+        }
+
+        @media (max-width: 500px) {
+            #controls {
+                top: 10px;
+                left: 10px;
+                width: calc(100vw - 20px);
+                max-height: calc(100vh - 20px);
+                padding: 17px;
+            }
+            #menuButton {
+                top: 10px;
+                left: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<button id="menuButton" aria-label="Open controls">
+    <span id="menuIcon">☰</span>
+</button>
+
+<div id="hint">click and drag to disturb the flow</div>
+
+<div id="controls">
+    <div class="panel-header">
+        <div>
+            <div class="panel-title">currents</div>
+            <div class="panel-subtitle">guide the flow field</div>
+        </div>
+        <button id="closeButton">×</button>
+    </div>
+
+    <!-- FIELD -->
+    <div class="section">
+        <div class="section-title">field</div>
+        <div class="control">
+            <div class="control-label">
+                <span>density</span>
+                <span class="value" id="densityValue"></span>
+            </div>
+            <input id="density" type="range" min="500" max="4000" step="100" value="2000">
+        </div>
+        <div class="control">
+            <div class="control-label">
+                <span>turbulence</span>
+                <span class="value" id="turbulenceValue"></span>
+            </div>
+            <input id="turbulence" type="range" min="0.001" max="0.015" step="0.001" value="0.006">
+        </div>
+        <div class="control">
+            <div class="control-label">
+                <span>evolution speed</span>
+                <span class="value" id="evolutionValue"></span>
+            </div>
+            <input id="evolution" type="range" min="0" max="0.005" step="0.0001" value="0.0015">
+        </div>
+    </div>
+
+    <!-- PARTICLES -->
+    <div class="section">
+        <div class="section-title">particles</div>
+        <div class="control">
+            <div class="control-label">
+                <span>velocity</span>
+                <span class="value" id="velocityValue"></span>
+            </div>
+            <input id="velocity" type="range" min="0.5" max="4" step="0.1" value="1.5">
+        </div>
+        <div class="control">
+            <div class="control-label">
+                <span>trail fade</span>
+                <span class="value" id="fadeValue"></span>
+            </div>
+            <input id="fade" type="range" min="0.01" max="0.2" step="0.01" value="0.06">
+        </div>
+    </div>
+
+    <!-- APPEARANCE -->
+    <div class="section">
+        <div class="section-title">appearance</div>
+        <div class="color-row">
+            <div class="color-control">
+                <div class="control-label"><span>tide 1</span></div>
+                <input id="color1" type="color" value="#00ffcc">
+            </div>
+            <div class="color-control">
+                <div class="control-label"><span>tide 2</span></div>
+                <input id="color2" type="color" value="#8800ff">
+            </div>
+        </div>
+    </div>
+
+    <!-- SYSTEM -->
+    <div class="section">
+        <div class="section-title">system</div>
+        <div class="button-row">
+            <button class="action" id="scatter">scatter</button>
+            <button class="action" id="reset">reset</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* =====================================================
+       UI & MENUS
+    ===================================================== */
+    const menuButton = document.getElementById("menuButton");
+    const closeButton = document.getElementById("closeButton");
+    const controls = document.getElementById("controls");
+    const hint = document.getElementById("hint");
+
+    let menuOpen = false;
+    let idleTimer;
+
+    function openMenu() {
+        menuOpen = true;
+        controls.classList.add("open");
+        menuButton.classList.add("open");
+        clearTimeout(idleTimer);
+    }
+
+    function closeMenu() {
+        menuOpen = false;
+        controls.classList.remove("open");
+        menuButton.classList.remove("open");
+        resetIdleTimer();
+    }
+
+    menuButton.addEventListener("click", e => {
+        e.stopPropagation();
+        menuOpen ? closeMenu() : openMenu();
+    });
+
+    closeButton.addEventListener("click", e => {
+        e.stopPropagation();
+        closeMenu();
+    });
+
+    function resetIdleTimer() {
+        clearTimeout(idleTimer);
+        if (menuOpen) return;
+        menuButton.classList.remove("hidden");
+        idleTimer = setTimeout(() => {
+            if (!menuOpen) menuButton.classList.add("hidden");
+        }, 2800);
+    }
+
+    document.addEventListener("mousemove", e => {
+        if (e.clientX < 100 && e.clientY < 100) resetIdleTimer();
+        resetIdleTimer();
+    });
+    resetIdleTimer();
+    setTimeout(() => { hint.style.opacity = '0'; }, 5000);
+
+
+    /* =====================================================
+       SETTINGS & BINDINGS
+    ===================================================== */
+    const DEFAULTS = {
+        density: 2000,
+        turbulence: 0.006,
+        evolution: 0.0015,
+        velocity: 1.5,
+        fade: 0.06,
+        color1: "#00ffcc",
+        color2: "#8800ff"
+    };
+
+    const settings = { ...DEFAULTS };
+
+    const controlsMap = {
+        density: { value: "densityValue", format: v => Math.round(v) },
+        turbulence: { value: "turbulenceValue", format: v => Number(v).toFixed(3) },
+        evolution: { value: "evolutionValue", format: v => Number(v).toFixed(4) },
+        velocity: { value: "velocityValue", format: v => Number(v).toFixed(1) },
+        fade: { value: "fadeValue", format: v => Number(v).toFixed(2) }
+    };
+
+    for (const [id, config] of Object.entries(controlsMap)) {
+        const input = document.getElementById(id);
+        const output = document.getElementById(config.value);
+
+        input.addEventListener("input", () => {
+            settings[id] = parseFloat(input.value);
+            output.textContent = config.format(settings[id]);
+            if(id === "density") initParticles();
+        });
+        settings[id] = parseFloat(input.value);
+        output.textContent = config.format(settings[id]);
+    }
+
+    document.getElementById("color1").addEventListener("input", e => settings.color1 = e.target.value);
+    document.getElementById("color2").addEventListener("input", e => settings.color2 = e.target.value);
+
+
+    /* =====================================================
+       HELPERS
+    ===================================================== */
+    function hexToRgb(hex) {
+        hex = hex.replace("#", "");
+        return {
+            r: parseInt(hex.substring(0, 2), 16),
+            g: parseInt(hex.substring(2, 4), 16),
+            b: parseInt(hex.substring(4, 6), 16)
+        };
+    }
+
+    function lerpColor(c1, c2, factor) {
+        const rgb1 = hexToRgb(c1);
+        const rgb2 = hexToRgb(c2);
+        return `rgb(${Math.round(rgb1.r + factor * (rgb2.r - rgb1.r))},
+                    ${Math.round(rgb1.g + factor * (rgb2.g - rgb1.g))},
+                    ${Math.round(rgb1.b + factor * (rgb2.b - rgb1.b))})`;
+    }
+
+
+    /* =====================================================
+       CANVAS & MATH
+    ===================================================== */
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d", { alpha: false });
+
+    let width, height;
+    let time = 0;
+    let particles = [];
+
+    // Interaction variables
+    let isDrawing = false;
+    let mouseX = -1000;
+    let mouseY = -1000;
+    let pmouseX = -1000;
+    let pmouseY = -1000;
+
+    function resize() {
+        const dpr = window.devicePixelRatio || 1;
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.fillStyle = "#030406";
+        ctx.fillRect(0, 0, width, height);
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    // Pseudo-noise function (layered trigonometry for a smooth vector field)
+    function getFlowAngle(x, y, z) {
+        const scl = settings.turbulence;
+        const nx = x * scl;
+        const ny = y * scl;
+
+        const a1 = Math.sin(nx + z) * Math.cos(ny - z);
+        const a2 = Math.sin(ny * 1.5 + z * 0.8) * Math.cos(nx * 1.5 - z * 0.8);
+
+        return (a1 + a2) * Math.PI;
+    }
+
+    class Particle {
+        constructor() {
+            this.reset();
+            this.x = Math.random() * width;
+            this.y = Math.random() * height;
+        }
+
+        reset() {
+            this.x = Math.random() * width;
+            this.y = Math.random() * height;
+            this.vx = 0;
+            this.vy = 0;
+            this.life = 0;
+            this.maxLife = 100 + Math.random() * 200;
+            this.colorFactor = Math.random();
+        }
+
+        update() {
+            this.life++;
+            if (this.life > this.maxLife ||
+                this.x < 0 || this.x > width ||
+                this.y < 0 || this.y > height) {
+                this.reset();
+                // Randomly spawn at edges sometimes for better influx
+                if (Math.random() > 0.5) {
+                    if (Math.random() > 0.5) {
+                        this.x = Math.random() > 0.5 ? 0 : width;
+                        this.y = Math.random() * height;
+                    } else {
+                        this.x = Math.random() * width;
+                        this.y = Math.random() > 0.5 ? 0 : height;
+                    }
+                }
+            }
+
+            // Mouse interaction (repel/pull)
+            if (isDrawing) {
+                const dx = this.x - mouseX;
+                const dy = this.y - mouseY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 150) {
+                    const force = (150 - dist) / 150;
+                    const mdx = mouseX - pmouseX;
+                    const mdy = mouseY - pmouseY;
+                    this.vx += (mdx * force * 0.1);
+                    this.vy += (mdy * force * 0.1);
+                }
+            }
+
+            // Flow field interaction
+            const angle = getFlowAngle(this.x, this.y, time);
+            const forceX = Math.cos(angle);
+            const forceY = Math.sin(angle);
+
+            this.vx += forceX * 0.1;
+            this.vy += forceY * 0.1;
+
+            // Apply friction & speed limits
+            this.vx *= 0.92;
+            this.vy *= 0.92;
+
+            const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+            if (speed > settings.velocity) {
+                this.vx = (this.vx / speed) * settings.velocity;
+                this.vy = (this.vy / speed) * settings.velocity;
+            }
+
+            // Store previous position for drawing lines
+            this.px = this.x;
+            this.py = this.y;
+
+            this.x += this.vx;
+            this.y += this.vy;
+        }
+
+        draw(ctx) {
+            const lifeRatio = Math.min(1, this.life / 30, (this.maxLife - this.life) / 30);
+            if (lifeRatio <= 0) return;
+
+            ctx.beginPath();
+            ctx.moveTo(this.px, this.py);
+            ctx.lineTo(this.x, this.y);
+
+            const c = lerpColor(settings.color1, settings.color2, this.colorFactor);
+            ctx.strokeStyle = c;
+            ctx.globalAlpha = lifeRatio * 0.7; // Smooth fade in/out per particle
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    function initParticles() {
+        const target = settings.density;
+        if (particles.length > target) {
+            particles.splice(target);
+        } else {
+            while (particles.length < target) {
+                particles.push(new Particle());
+            }
+        }
+    }
+    initParticles();
+
+
+    /* =====================================================
+       INTERACTION
+    ===================================================== */
+    window.addEventListener("mousedown", e => {
+        if (e.target !== canvas) return;
+        isDrawing = true;
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        pmouseX = mouseX;
+        pmouseY = mouseY;
+    });
+
+    window.addEventListener("mousemove", e => {
+        if (!isDrawing) return;
+        pmouseX = mouseX;
+        pmouseY = mouseY;
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+    });
+
+    window.addEventListener("mouseup", () => isDrawing = false);
+    window.addEventListener("touchstart", e => {
+        if (e.target !== canvas) return;
+        isDrawing = true;
+        mouseX = e.touches[0].clientX;
+        mouseY = e.touches[0].clientY;
+        pmouseX = mouseX;
+        pmouseY = mouseY;
+    }, {passive: false});
+
+    window.addEventListener("touchmove", e => {
+        if (!isDrawing) return;
+        pmouseX = mouseX;
+        pmouseY = mouseY;
+        mouseX = e.touches[0].clientX;
+        mouseY = e.touches[0].clientY;
+    }, {passive: false});
+
+    window.addEventListener("touchend", () => isDrawing = false);
+
+    document.getElementById("scatter").addEventListener("click", () => {
+        particles.forEach(p => p.reset());
+        ctx.fillStyle = "#030406";
+        ctx.fillRect(0, 0, width, height);
+    });
+
+    document.getElementById("reset").addEventListener("click", () => {
+        for (const [key, value] of Object.entries(DEFAULTS)) {
+            settings[key] = value;
+            const input = document.getElementById(key);
+            if (input) input.value = value;
+            const config = controlsMap[key];
+            if (config) document.getElementById(config.value).textContent = config.format(value);
+        }
+        document.getElementById("color1").value = DEFAULTS.color1;
+        document.getElementById("color2").value = DEFAULTS.color2;
+        initParticles();
+        ctx.fillStyle = "#030406";
+        ctx.fillRect(0, 0, width, height);
+    });
+
+
+    /* =====================================================
+       ANIMATION LOOP
+    ===================================================== */
+    function frame() {
+        // Fade effect for trails
+        ctx.fillStyle = `rgba(3, 4, 6, ${settings.fade})`;
+        ctx.fillRect(0, 0, width, height);
+
+        time += settings.evolution;
+
+        particles.forEach(p => {
+            p.update();
+            p.draw(ctx);
+        });
+
+        requestAnimationFrame(frame);
+    }
+
+    requestAnimationFrame(frame);
+
+</script>
+</body>
+</html>

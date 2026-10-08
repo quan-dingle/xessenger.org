@@ -1,0 +1,1874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>topography</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: #050606;
+        }
+
+        body {
+            font-family: monospace;
+            color: white;
+        }
+
+        canvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* -----------------------------------------------
+           UI
+        ------------------------------------------------ */
+
+        #menuButton {
+            position: fixed;
+            top: 18px;
+            left: 18px;
+
+            width: 36px;
+            height: 36px;
+
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 50%;
+
+            background: rgba(10,10,10,0.28);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+
+            color: rgba(255,255,255,0.58);
+
+            cursor: pointer;
+            z-index: 20;
+
+            transition:
+                    opacity 0.8s ease,
+                    transform 0.8s ease,
+                    background 0.2s ease;
+        }
+
+        #menuButton:hover {
+            background: rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        #menuButton.hidden {
+            opacity: 0;
+            transform: scale(0.8);
+            pointer-events: none;
+        }
+
+        #menuIcon {
+            display: block;
+            transition: transform 0.3s ease;
+        }
+
+        #menuButton.open #menuIcon {
+            transform: rotate(90deg);
+        }
+
+        #panel {
+            position: fixed;
+            top: 18px;
+            left: 18px;
+
+            width: min(300px, calc(100vw - 36px));
+            max-height: calc(100vh - 36px);
+
+            padding: 19px;
+
+            overflow-y: auto;
+
+            background: rgba(10,11,11,0.58);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 17px;
+
+            backdrop-filter: blur(25px) saturate(110%);
+            -webkit-backdrop-filter: blur(25px) saturate(110%);
+
+            box-shadow:
+                    0 25px 80px rgba(0,0,0,0.42),
+                    inset 0 1px rgba(255,255,255,0.035);
+
+            z-index: 15;
+
+            opacity: 0;
+            transform: translateY(-8px) scale(0.97);
+            pointer-events: none;
+
+            transition:
+                    opacity 0.25s ease,
+                    transform 0.25s ease;
+        }
+
+        #panel.open {
+            opacity: 1;
+            transform: none;
+            pointer-events: auto;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 19px;
+        }
+
+        .title {
+            font-size: 13px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.78);
+        }
+
+        .subtitle {
+            margin-top: 4px;
+            font-size: 9px;
+            color: rgba(255,255,255,0.30);
+            letter-spacing: 0.05em;
+        }
+
+        #close {
+            width: 28px;
+            height: 28px;
+
+            border: 0;
+            border-radius: 50%;
+
+            background: transparent;
+            color: rgba(255,255,255,0.42);
+
+            font: inherit;
+            font-size: 18px;
+
+            cursor: pointer;
+        }
+
+        #close:hover {
+            background: rgba(255,255,255,0.07);
+            color: white;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            margin-bottom: 11px;
+
+            font-size: 8px;
+            letter-spacing: 0.17em;
+            text-transform: uppercase;
+
+            color: rgba(255,255,255,0.28);
+        }
+
+        .control {
+            margin-bottom: 14px;
+        }
+
+        .control:last-child {
+            margin-bottom: 0;
+        }
+
+        .label {
+            display: flex;
+            justify-content: space-between;
+
+            margin-bottom: 7px;
+
+            font-size: 10px;
+            color: rgba(255,255,255,0.58);
+        }
+
+        .value {
+            color: rgba(255,255,255,0.35);
+        }
+
+        input[type="range"] {
+            appearance: none;
+            -webkit-appearance: none;
+
+            width: 100%;
+            height: 2px;
+
+            background: rgba(255,255,255,0.14);
+            outline: none;
+
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            -webkit-appearance: none;
+
+            width: 10px;
+            height: 10px;
+
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.65);
+
+            background: #111;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 10px;
+            height: 10px;
+
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.65);
+
+            background: #111;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 7px;
+        }
+
+        .action {
+            flex: 1;
+            height: 31px;
+
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 7px;
+
+            background: rgba(255,255,255,0.035);
+            color: rgba(255,255,255,0.52);
+
+            font: inherit;
+            font-size: 9px;
+
+            cursor: pointer;
+        }
+
+        .action:hover {
+            background: rgba(255,255,255,0.08);
+            color: white;
+        }
+
+        #label {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+
+            transform: translateX(-50%);
+
+            color: rgba(255,255,255,0.20);
+            font-size: 9px;
+            letter-spacing: 0.14em;
+
+            pointer-events: none;
+
+            transition: opacity 2s ease;
+        }
+
+        #label.hidden {
+            opacity: 0;
+        }
+    </style>
+</head>
+
+<body>
+
+<canvas id="canvas"></canvas>
+
+<button id="menuButton" aria-label="Open controls">
+    <span id="menuIcon">☰</span>
+</button>
+
+<div id="panel">
+
+    <div class="header">
+        <div>
+            <div class="title">topography</div>
+            <div class="subtitle">a quiet landscape</div>
+        </div>
+
+        <button id="close">×</button>
+    </div>
+
+    <div class="section">
+
+        <div class="section-title">terrain</div>
+
+        <div class="control">
+            <div class="label">
+                <span>detail</span>
+                <span class="value" id="scaleValue"></span>
+            </div>
+
+            <input
+                    id="scale"
+                    type="range"
+                    min="0.002"
+                    max="0.012"
+                    step="0.0005"
+                    value="0.005"
+            >
+        </div>
+
+        <div class="control">
+            <div class="label">
+                <span>layers</span>
+                <span class="value" id="octavesValue"></span>
+            </div>
+
+            <input
+                    id="octaves"
+                    type="range"
+                    min="1"
+                    max="5"
+                    step="1"
+                    value="4"
+            >
+        </div>
+
+        <div class="control">
+            <div class="label">
+                <span>height</span>
+                <span class="value" id="heightValue"></span>
+            </div>
+
+            <input
+                    id="height"
+                    type="range"
+                    min="0.4"
+                    max="2.5"
+                    step="0.05"
+                    value="1"
+            >
+        </div>
+
+        <div class="control">
+            <div class="label">
+                <span>contours</span>
+                <span class="value" id="levelsValue"></span>
+            </div>
+
+            <input
+                    id="levels"
+                    type="range"
+                    min="6"
+                    max="30"
+                    step="1"
+                    value="16"
+            >
+        </div>
+
+    </div>
+
+    <div class="section">
+
+        <div class="section-title">appearance</div>
+
+        <div class="control">
+            <div class="label">
+                <span>line opacity</span>
+                <span class="value" id="opacityValue"></span>
+            </div>
+
+            <input
+                    id="opacity"
+                    type="range"
+                    min="0.05"
+                    max="0.9"
+                    step="0.01"
+                    value="0.32"
+            >
+        </div>
+
+        <div class="control">
+            <div class="label">
+                <span>line width</span>
+                <span class="value" id="lineWidthValue"></span>
+            </div>
+
+            <input
+                    id="lineWidth"
+                    type="range"
+                    min="0.4"
+                    max="2"
+                    step="0.1"
+                    value="0.75"
+            >
+        </div>
+
+        <div class="control">
+            <div class="label">
+                <span>glow</span>
+                <span class="value" id="glowValue"></span>
+            </div>
+
+            <input
+                    id="glow"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value="0.2"
+            >
+        </div>
+
+    </div>
+
+    <div class="section">
+
+        <div class="section-title">interaction</div>
+
+        <div class="control">
+            <div class="label">
+                <span>mouse influence</span>
+                <span class="value" id="mouseValue"></span>
+            </div>
+
+            <input
+                    id="mouse"
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="0.05"
+                    value="0.65"
+            >
+        </div>
+
+        <div class="control">
+            <div class="label">
+                <span>drift</span>
+                <span class="value" id="driftValue"></span>
+            </div>
+
+            <input
+                    id="drift"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value="0.18"
+            >
+        </div>
+
+    </div>
+
+    <div class="section">
+
+        <div class="section-title">system</div>
+
+        <div class="buttons">
+            <button class="action" id="regenerate">
+                regenerate
+            </button>
+
+            <button class="action" id="reset">
+                reset
+            </button>
+        </div>
+
+    </div>
+
+</div>
+
+<div id="label">
+    move slowly · click the landscape
+</div>
+
+
+<script>
+    /* =====================================================
+       TOPOGRAPHY
+       Single-file procedural contour map
+    ===================================================== */
+
+    const canvas =
+        document.getElementById("canvas");
+
+    const ctx =
+        canvas.getContext("2d");
+
+    let width;
+    let height;
+    let dpr;
+
+
+    /* =====================================================
+       SETTINGS
+    ===================================================== */
+
+    const DEFAULTS = {
+
+        scale: 0.005,
+
+        octaves: 4,
+
+        height: 1,
+
+        levels: 16,
+
+        opacity: 0.32,
+
+        lineWidth: 0.75,
+
+        glow: 0.2,
+
+        mouse: 0.65,
+
+        drift: 0.18
+    };
+
+    const settings = {
+        ...DEFAULTS
+    };
+
+
+    /* =====================================================
+       RESIZE
+    ===================================================== */
+
+    function resize() {
+
+        dpr =
+            Math.min(
+                window.devicePixelRatio || 1,
+                2
+            );
+
+        width =
+            window.innerWidth;
+
+        height =
+            window.innerHeight;
+
+        canvas.width =
+            width * dpr;
+
+        canvas.height =
+            height * dpr;
+
+        canvas.style.width =
+            width + "px";
+
+        canvas.style.height =
+            height + "px";
+
+        ctx.setTransform(
+            dpr,
+            0,
+            0,
+            dpr,
+            0,
+            0
+        );
+    }
+
+    window.addEventListener(
+        "resize",
+        resize
+    );
+
+    resize();
+
+
+    /* =====================================================
+       SEEDED VALUE NOISE
+    ===================================================== */
+
+    /*
+        This is value noise rather than classic
+        gradient Perlin noise.
+
+        For a contour map the visual result is
+        very similar, while keeping everything
+        compact and dependency-free.
+    */
+
+    let seed =
+        Math.random() * 100000;
+
+
+    function hash(x, y) {
+
+        const n =
+            Math.sin(
+                x * 127.1 +
+                y * 311.7 +
+                seed
+            ) *
+            43758.5453123;
+
+        return n - Math.floor(n);
+    }
+
+
+    function smooth(t) {
+
+        return t * t * (3 - 2 * t);
+    }
+
+
+    function noise(x, y) {
+
+        const x0 =
+            Math.floor(x);
+
+        const y0 =
+            Math.floor(y);
+
+        const x1 =
+            x0 + 1;
+
+        const y1 =
+            y0 + 1;
+
+        const sx =
+            smooth(x - x0);
+
+        const sy =
+            smooth(y - y0);
+
+
+        const n00 =
+            hash(x0, y0);
+
+        const n10 =
+            hash(x1, y0);
+
+        const n01 =
+            hash(x0, y1);
+
+        const n11 =
+            hash(x1, y1);
+
+
+        const ix0 =
+            n00 +
+            (n10 - n00) * sx;
+
+        const ix1 =
+            n01 +
+            (n11 - n01) * sx;
+
+
+        return (
+            ix0 +
+            (ix1 - ix0) * sy
+        );
+    }
+
+
+    /* =====================================================
+       FRACTAL NOISE
+    ===================================================== */
+
+    function terrain(x, y) {
+
+        let value = 0;
+
+        let amplitude = 1;
+
+        let frequency = 1;
+
+        let total = 0;
+
+        for (
+            let i = 0;
+            i < settings.octaves;
+            i++
+        ) {
+
+            value +=
+                noise(
+                    x * frequency,
+                    y * frequency
+                ) *
+                amplitude;
+
+            total += amplitude;
+
+            amplitude *= 0.5;
+
+            frequency *= 2;
+        }
+
+        value /= total;
+
+
+        /*
+            Slightly compress the valleys and
+            peaks to create broader contours.
+        */
+
+        value =
+            Math.pow(
+                value,
+                0.9
+            );
+
+
+        return value;
+    }
+
+
+    /* =====================================================
+       MAP GRID
+    ===================================================== */
+
+    let grid = null;
+
+    let gridWidth = 0;
+    let gridHeight = 0;
+
+    let cellSize = 9;
+
+
+    function generateTerrain() {
+
+        /*
+            Resolution is intentionally modest.
+            The contour renderer interpolates between
+            cells, giving a smooth hand-drawn quality.
+        */
+
+        cellSize =
+            Math.max(
+                7,
+                Math.min(
+                    13,
+                    Math.round(
+                        Math.min(width, height) / 90
+                    )
+                )
+            );
+
+
+        gridWidth =
+            Math.ceil(width / cellSize) + 2;
+
+        gridHeight =
+            Math.ceil(height / cellSize) + 2;
+
+
+        grid =
+            new Float32Array(
+                gridWidth * gridHeight
+            );
+
+
+        for (
+            let y = 0;
+            y < gridHeight;
+            y++
+        ) {
+
+            for (
+                let x = 0;
+                x < gridWidth;
+                x++
+            ) {
+
+                const nx =
+                    x * cellSize *
+                    settings.scale;
+
+                const ny =
+                    y * cellSize *
+                    settings.scale;
+
+
+                grid[
+                y * gridWidth + x
+                    ] =
+                    terrain(nx, ny);
+            }
+        }
+    }
+
+
+    /* =====================================================
+       HEIGHT SAMPLING
+    ===================================================== */
+
+    function sample(x, y) {
+
+        x =
+            Math.max(
+                0,
+                Math.min(
+                    gridWidth - 1.001,
+                    x / cellSize
+                )
+            );
+
+        y =
+            Math.max(
+                0,
+                Math.min(
+                    gridHeight - 1.001,
+                    y / cellSize
+                )
+            );
+
+
+        const x0 =
+            Math.floor(x);
+
+        const y0 =
+            Math.floor(y);
+
+        const x1 =
+            Math.min(
+                x0 + 1,
+                gridWidth - 1
+            );
+
+        const y1 =
+            Math.min(
+                y0 + 1,
+                gridHeight - 1
+            );
+
+
+        const tx =
+            x - x0;
+
+        const ty =
+            y - y0;
+
+
+        const a =
+            grid[
+            y0 * gridWidth + x0
+                ];
+
+        const b =
+            grid[
+            y0 * gridWidth + x1
+                ];
+
+        const c =
+            grid[
+            y1 * gridWidth + x0
+                ];
+
+        const d =
+            grid[
+            y1 * gridWidth + x1
+                ];
+
+
+        return (
+            a * (1 - tx) * (1 - ty) +
+            b * tx * (1 - ty) +
+            c * (1 - tx) * ty +
+            d * tx * ty
+        );
+    }
+
+
+    /* =====================================================
+       MOUSE
+    ===================================================== */
+
+    const mouse = {
+
+        x: width / 2,
+        y: height / 2,
+
+        targetX: width / 2,
+        targetY: height / 2,
+
+        active: false
+    };
+
+
+    window.addEventListener(
+        "mousemove",
+        e => {
+
+            mouse.targetX =
+                e.clientX;
+
+            mouse.targetY =
+                e.clientY;
+
+            mouse.active = true;
+        }
+    );
+
+
+    window.addEventListener(
+        "mouseleave",
+        () => {
+            mouse.active = false;
+        }
+    );
+
+
+    /* =====================================================
+       INTERACTION RIPPLES
+    ===================================================== */
+
+    const ripples = [];
+
+
+    canvas.addEventListener(
+        "click",
+        e => {
+
+            ripples.push({
+
+                x: e.clientX,
+                y: e.clientY,
+
+                radius: 0,
+
+                life: 1
+            });
+
+
+            if (ripples.length > 8) {
+                ripples.shift();
+            }
+        }
+    );
+
+
+    /* =====================================================
+       HEIGHT WITH INTERACTION
+    ===================================================== */
+
+    function interactiveHeight(x, y, time) {
+
+        let h =
+            sample(x, y);
+
+
+        /*
+            Mouse creates a broad, extremely
+            subtle depression/elevation.
+        */
+
+        if (mouse.active) {
+
+            const dx =
+                x - mouse.x;
+
+            const dy =
+                y - mouse.y;
+
+            const distance =
+                Math.sqrt(
+                    dx * dx +
+                    dy * dy
+                );
+
+
+            const radius =
+                Math.min(width, height) *
+                0.28;
+
+
+            if (distance < radius) {
+
+                const influence =
+                    1 -
+                    distance / radius;
+
+                /*
+                    Smooth dome.
+                */
+
+                h +=
+                    influence *
+                    influence *
+                    0.045 *
+                    settings.mouse;
+            }
+        }
+
+
+        /*
+            Expanding click ripples.
+        */
+
+        for (const ripple of ripples) {
+
+            const dx =
+                x - ripple.x;
+
+            const dy =
+                y - ripple.y;
+
+            const distance =
+                Math.sqrt(
+                    dx * dx +
+                    dy * dy
+                );
+
+
+            const ringWidth = 85;
+
+            const difference =
+                Math.abs(
+                    distance -
+                    ripple.radius
+                );
+
+
+            if (
+                difference >
+                ringWidth
+            ) {
+                continue;
+            }
+
+
+            const influence =
+                1 -
+                difference /
+                ringWidth;
+
+
+            h +=
+                Math.sin(
+                    influence *
+                    Math.PI
+                ) *
+                0.035 *
+                ripple.life;
+        }
+
+
+        /*
+            Very slow breathing of the landscape.
+        */
+
+        h +=
+            Math.sin(
+                time * 0.00015 +
+                x * 0.002
+            ) *
+            settings.drift *
+            0.008;
+
+
+        return Math.max(
+            0,
+            Math.min(
+                1,
+                h * settings.height
+            )
+        );
+    }
+
+
+    /* =====================================================
+       CONTOUR RENDERING
+    ===================================================== */
+
+    /*
+        Marching squares.
+
+        Each grid cell is examined against
+        each contour level. Intersections are
+        connected into tiny line segments.
+    */
+
+    function drawContours(time) {
+
+        const levels =
+            settings.levels;
+
+
+        ctx.lineWidth =
+            settings.lineWidth;
+
+        ctx.lineCap =
+            "round";
+
+        ctx.lineJoin =
+            "round";
+
+
+        for (
+            let levelIndex = 1;
+            levelIndex < levels;
+            levelIndex++
+        ) {
+
+            const threshold =
+                levelIndex / levels;
+
+
+            /*
+                Every few contour levels are slightly
+                brighter, mimicking index contours
+                on real maps.
+            */
+
+            const major =
+                levelIndex % 5 === 0;
+
+
+            const alpha =
+                settings.opacity *
+                (
+                    major
+                        ? 1.35
+                        : 0.72
+                );
+
+
+            ctx.strokeStyle =
+                `rgba(
+                210,
+                225,
+                218,
+                ${Math.min(
+                    0.75,
+                    alpha
+                )}
+            )`;
+
+
+            ctx.beginPath();
+
+
+            for (
+                let gy = 0;
+                gy < gridHeight - 1;
+                gy++
+            ) {
+
+                for (
+                    let gx = 0;
+                    gx < gridWidth - 1;
+                    gx++
+                ) {
+
+                    const x =
+                        gx * cellSize;
+
+                    const y =
+                        gy * cellSize;
+
+
+                    const a =
+                        interactiveHeight(
+                            x,
+                            y,
+                            time
+                        );
+
+                    const b =
+                        interactiveHeight(
+                            x + cellSize,
+                            y,
+                            time
+                        );
+
+                    const c =
+                        interactiveHeight(
+                            x + cellSize,
+                            y + cellSize,
+                            time
+                        );
+
+                    const d =
+                        interactiveHeight(
+                            x,
+                            y + cellSize,
+                            time
+                        );
+
+
+                    let code = 0;
+
+                    if (a > threshold) code |= 1;
+                    if (b > threshold) code |= 2;
+                    if (c > threshold) code |= 4;
+                    if (d > threshold) code |= 8;
+
+
+                    if (
+                        code === 0 ||
+                        code === 15
+                    ) {
+                        continue;
+                    }
+
+
+                    /*
+                        Interpolation along each edge.
+                    */
+
+                    const top =
+                        interpolate(
+                            x,
+                            y,
+                            x + cellSize,
+                            y,
+                            a,
+                            b,
+                            threshold
+                        );
+
+                    const right =
+                        interpolate(
+                            x + cellSize,
+                            y,
+                            x + cellSize,
+                            y + cellSize,
+                            b,
+                            c,
+                            threshold
+                        );
+
+                    const bottom =
+                        interpolate(
+                            x,
+                            y + cellSize,
+                            x + cellSize,
+                            y + cellSize,
+                            d,
+                            c,
+                            threshold
+                        );
+
+                    const left =
+                        interpolate(
+                            x,
+                            y,
+                            x,
+                            y + cellSize,
+                            a,
+                            d,
+                            threshold
+                        );
+
+
+                    /*
+                        Lookup table.
+
+                        Coordinates:
+                            0 = top
+                            1 = right
+                            2 = bottom
+                            3 = left
+                    */
+
+                    const segments = {
+
+                        1: [[3,0]],
+                        2: [[0,1]],
+                        3: [[3,1]],
+
+                        4: [[1,2]],
+                        5: [[3,2],[0,1]],
+                        6: [[0,2]],
+
+                        7: [[3,2]],
+
+                        8: [[2,3]],
+                        9: [[0,2]],
+                        10: [[0,3],[1,2]],
+                        11: [[1,2]],
+
+                        12: [[1,3]],
+                        13: [[0,1]],
+                        14: [[3,0]]
+                    };
+
+
+                    const points = [
+                        top,
+                        right,
+                        bottom,
+                        left
+                    ];
+
+
+                    for (
+                        const segment
+                        of segments[code] || []
+                        ) {
+
+                        const p1 =
+                            points[segment[0]];
+
+                        const p2 =
+                            points[segment[1]];
+
+
+                        ctx.moveTo(
+                            p1.x,
+                            p1.y
+                        );
+
+                        ctx.lineTo(
+                            p2.x,
+                            p2.y
+                        );
+                    }
+                }
+            }
+
+
+            ctx.stroke();
+        }
+    }
+
+
+    /* =====================================================
+       INTERPOLATION
+    ===================================================== */
+
+    function interpolate(
+        x1,
+        y1,
+        x2,
+        y2,
+        v1,
+        v2,
+        threshold
+    ) {
+
+        let t =
+            (threshold - v1) /
+            (v2 - v1);
+
+
+        if (!Number.isFinite(t)) {
+            t = 0.5;
+        }
+
+
+        t =
+            Math.max(
+                0,
+                Math.min(
+                    1,
+                    t
+                )
+            );
+
+
+        return {
+
+            x:
+                x1 +
+                (x2 - x1) * t,
+
+            y:
+                y1 +
+                (y2 - y1) * t
+        };
+    }
+
+
+    /* =====================================================
+       ATMOSPHERE
+    ===================================================== */
+
+    function drawAtmosphere() {
+
+        /*
+            Very faint center illumination.
+        */
+
+        const gradient =
+            ctx.createRadialGradient(
+                width * 0.5,
+                height * 0.48,
+                0,
+                width * 0.5,
+                height * 0.48,
+                Math.max(width, height) * 0.75
+            );
+
+
+        gradient.addColorStop(
+            0,
+            `rgba(
+            80,
+            105,
+            100,
+            ${settings.glow * 0.10}
+        )`
+        );
+
+        gradient.addColorStop(
+            1,
+            "rgba(0,0,0,0)"
+        );
+
+
+        ctx.fillStyle =
+            gradient;
+
+        ctx.fillRect(
+            0,
+            0,
+            width,
+            height
+        );
+    }
+
+
+    /* =====================================================
+       FRAME
+    ===================================================== */
+
+    let lastTime = 0;
+
+
+    function frame(time) {
+
+        /*
+            Dark translucent layer preserves a
+            tiny amount of motion between frames.
+        */
+
+        ctx.fillStyle =
+            "rgba(5,6,6,0.16)";
+
+        ctx.fillRect(
+            0,
+            0,
+            width,
+            height
+        );
+
+
+        /*
+            Smooth mouse.
+        */
+
+        mouse.x +=
+            (mouse.targetX - mouse.x) *
+            0.035;
+
+        mouse.y +=
+            (mouse.targetY - mouse.y) *
+            0.035;
+
+
+        /*
+            Update ripples.
+        */
+
+        for (
+            let i = ripples.length - 1;
+            i >= 0;
+            i--
+        ) {
+
+            const ripple =
+                ripples[i];
+
+            ripple.radius += 2.2;
+
+            ripple.life *= 0.982;
+
+
+            if (
+                ripple.life <
+                0.01
+            ) {
+                ripples.splice(i, 1);
+            }
+        }
+
+
+        drawContours(time);
+        drawAtmosphere();
+
+
+        lastTime = time;
+
+        requestAnimationFrame(frame);
+    }
+
+
+    /* =====================================================
+       CONTROLS
+    ===================================================== */
+
+    const controls = {
+
+        scale: {
+            value: "scaleValue",
+            format: v => Number(v).toFixed(4)
+        },
+
+        octaves: {
+            value: "octavesValue",
+            format: v => Math.round(v)
+        },
+
+        height: {
+            value: "heightValue",
+            format: v => Number(v).toFixed(2)
+        },
+
+        levels: {
+            value: "levelsValue",
+            format: v => Math.round(v)
+        },
+
+        opacity: {
+            value: "opacityValue",
+            format: v => Number(v).toFixed(2)
+        },
+
+        lineWidth: {
+            value: "lineWidthValue",
+            format: v => Number(v).toFixed(1)
+        },
+
+        glow: {
+            value: "glowValue",
+            format: v => Number(v).toFixed(2)
+        },
+
+        mouse: {
+            value: "mouseValue",
+            format: v => Number(v).toFixed(2)
+        },
+
+        drift: {
+            value: "driftValue",
+            format: v => Number(v).toFixed(2)
+        }
+    };
+
+
+    function bindControls() {
+
+        for (
+            const [id, config]
+            of Object.entries(controls)
+            ) {
+
+            const input =
+                document.getElementById(id);
+
+            const output =
+                document.getElementById(
+                    config.value
+                );
+
+
+            function update() {
+
+                const value =
+                    parseFloat(
+                        input.value
+                    );
+
+                settings[id] =
+                    Number.isFinite(value)
+                        ? value
+                        : DEFAULTS[id];
+
+
+                output.textContent =
+                    config.format(
+                        settings[id]
+                    );
+
+
+                /*
+                    Terrain parameters require
+                    regeneration.
+                */
+
+                if (
+                    id === "scale" ||
+                    id === "octaves"
+                ) {
+                    generateTerrain();
+                }
+            }
+
+
+            input.addEventListener(
+                "input",
+                update
+            );
+
+            update();
+        }
+    }
+
+
+    bindControls();
+
+
+    /* =====================================================
+       RESET
+    ===================================================== */
+
+    document
+        .getElementById("reset")
+        .addEventListener(
+            "click",
+            () => {
+
+                for (
+                    const [key, value]
+                    of Object.entries(DEFAULTS)
+                    ) {
+
+                    settings[key] =
+                        value;
+
+
+                    const input =
+                        document.getElementById(
+                            key
+                        );
+
+
+                    if (input) {
+                        input.value =
+                            value;
+                    }
+
+
+                    const config =
+                        controls[key];
+
+
+                    if (config) {
+
+                        document.getElementById(
+                            config.value
+                        ).textContent =
+                            config.format(
+                                value
+                            );
+                    }
+                }
+
+
+                seed =
+                    Math.random() *
+                    100000;
+
+
+                generateTerrain();
+            }
+        );
+
+
+    /* =====================================================
+       REGENERATE
+    ===================================================== */
+
+    document
+        .getElementById("regenerate")
+        .addEventListener(
+            "click",
+            () => {
+
+                seed =
+                    Math.random() *
+                    100000;
+
+                generateTerrain();
+            }
+        );
+
+
+    /* =====================================================
+       MENU
+    ===================================================== */
+
+    const menuButton =
+        document.getElementById(
+            "menuButton"
+        );
+
+    const panel =
+        document.getElementById(
+            "panel"
+        );
+
+    const close =
+        document.getElementById(
+            "close"
+        );
+
+
+    let menuOpen = false;
+
+
+    function openMenu() {
+
+        menuOpen = true;
+
+        panel.classList.add(
+            "open"
+        );
+
+        menuButton.classList.add(
+            "open"
+        );
+    }
+
+
+    function closeMenu() {
+
+        menuOpen = false;
+
+        panel.classList.remove(
+            "open"
+        );
+
+        menuButton.classList.remove(
+            "open"
+        );
+
+        resetIdle();
+    }
+
+
+    menuButton.addEventListener(
+        "click",
+        e => {
+
+            e.stopPropagation();
+
+            if (menuOpen) {
+                closeMenu();
+            } else {
+                openMenu();
+            }
+        }
+    );
+
+
+    close.addEventListener(
+        "click",
+        closeMenu
+    );
+
+
+    /* =====================================================
+       IDLE UI
+    ===================================================== */
+
+    const label =
+        document.getElementById(
+            "label"
+        );
+
+
+    let idleTimer;
+
+
+    function resetIdle() {
+
+        clearTimeout(
+            idleTimer
+        );
+
+
+        menuButton.classList.remove(
+            "hidden"
+        );
+
+        label.classList.remove(
+            "hidden"
+        );
+
+
+        if (!menuOpen) {
+
+            idleTimer =
+                setTimeout(
+                    () => {
+
+                        menuButton.classList.add(
+                            "hidden"
+                        );
+
+                        label.classList.add(
+                            "hidden"
+                        );
+
+                    },
+                    3200
+                );
+        }
+    }
+
+
+    document.addEventListener(
+        "mousemove",
+        e => {
+
+            if (
+                !menuOpen &&
+                e.clientX < 100 &&
+                e.clientY < 100
+            ) {
+                resetIdle();
+            }
+        }
+    );
+
+
+    document.addEventListener(
+        "mousemove",
+        () => {
+
+            if (!menuOpen) {
+                resetIdle();
+            }
+        }
+    );
+
+
+    /* =====================================================
+       START
+    ===================================================== */
+
+    generateTerrain();
+
+    resetIdle();
+
+    requestAnimationFrame(
+        frame
+    );
+
+
+    /* =====================================================
+       CLEANUP
+    ===================================================== */
+
+    window.remove_script =
+        function() {
+
+            clearTimeout(
+                idleTimer
+            );
+        };
+</script>
+
+</body>
+</html>

@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tide</title>
+
+    <style>
+        :root {
+            --ui-bg: rgba(10,12,16,.48);
+            --ui-border: rgba(255,255,255,.1);
+            --ui-text: rgba(255,255,255,.78);
+            --ui-muted: rgba(255,255,255,.34);
+            --ui-hover: rgba(255,255,255,.08);
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
+
+        body {
+            overflow: hidden;
+            background: #030508;
+            color: white;
+            font: 13px monospace;
+            user-select: none;
+        }
+
+        canvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #menuButton {
+            position: fixed;
+            top: 18px;
+            left: 18px;
+            z-index: 10;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--ui-border);
+            border-radius: 50%;
+            background: rgba(8,10,14,.3);
+            color: rgba(255,255,255,.62);
+            backdrop-filter: blur(14px);
+            cursor: pointer;
+            transition: opacity .8s, transform .8s, background .2s;
+        }
+
+        #menuButton:hover {
+            background: var(--ui-hover);
+            color: white;
+        }
+
+        #menuButton.hidden {
+            opacity: 0;
+            transform: scale(.8);
+            pointer-events: none;
+        }
+
+        #menuIcon {
+            transition: transform .35s;
+        }
+
+        #menuButton.open #menuIcon {
+            transform: rotate(90deg);
+        }
+
+        #controls {
+            position: fixed;
+            top: 18px;
+            left: 18px;
+            z-index: 9;
+            width: 310px;
+            padding: 20px;
+            border: 1px solid var(--ui-border);
+            border-radius: 18px;
+            background: var(--ui-bg);
+            backdrop-filter: blur(25px) saturate(120%);
+            box-shadow: 0 25px 70px rgba(0,0,0,.5), inset 0 1px rgba(255,255,255,.035);
+            opacity: 0;
+            transform: translateY(-8px) scale(.97);
+            pointer-events: none;
+            transition: opacity .25s, transform .25s;
+        }
+
+        #controls.open {
+            opacity: 1;
+            transform: none;
+            pointer-events: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 22px;
+        }
+
+        .title {
+            font-size: 14px;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            margin-top: 5px;
+            font-size: 10px;
+            color: var(--ui-muted);
+        }
+
+        #closeButton {
+            width: 28px;
+            height: 28px;
+            border: 0;
+            border-radius: 50%;
+            background: transparent;
+            color: rgba(255,255,255,.45);
+            font: 18px monospace;
+            cursor: pointer;
+        }
+
+        #closeButton:hover {
+            background: var(--ui-hover);
+            color: white;
+        }
+
+        .section {
+            margin-bottom: 21px;
+        }
+
+        .section-title {
+            margin-bottom: 12px;
+            color: rgba(255,255,255,.28);
+            font-size: 9px;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+        }
+
+        .control {
+            margin-bottom: 15px;
+        }
+
+        .control:last-child {
+            margin-bottom: 0;
+        }
+
+        .label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 7px;
+            color: rgba(255,255,255,.6);
+            font-size: 11px;
+        }
+
+        .value {
+            color: rgba(255,255,255,.34);
+        }
+
+        input[type=range] {
+            appearance: none;
+            width: 100%;
+            height: 2px;
+            background: rgba(255,255,255,.13);
+            border-radius: 4px;
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            appearance: none;
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,.7);
+            background: #101216;
+            cursor: pointer;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 7px;
+        }
+
+        .action {
+            flex: 1;
+            height: 32px;
+            border: 1px solid var(--ui-border);
+            border-radius: 8px;
+            background: rgba(255,255,255,.035);
+            color: rgba(255,255,255,.52);
+            font: 10px monospace;
+            cursor: pointer;
+        }
+
+        .action:hover {
+            background: var(--ui-hover);
+            color: white;
+        }
+
+        @media(max-width:500px) {
+            #controls {
+                top: 10px;
+                left: 10px;
+                width: calc(100vw - 20px);
+            }
+
+            #menuButton {
+                top: 10px;
+                left: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<canvas id="canvas"></canvas>
+
+<button id="menuButton"><span id="menuIcon">☰</span></button>
+
+<div id="controls">
+    <div class="header">
+        <div>
+            <div class="title">tide</div>
+            <div class="subtitle">leave something behind</div>
+        </div>
+        <button id="closeButton">×</button>
+    </div>
+
+    <div class="section">
+        <div class="section-title">water</div>
+
+        <div class="control">
+            <div class="label"><span>flow</span><span class="value" id="flowValue"></span></div>
+            <input id="flow" type="range" min="0" max="2" step=".01" value=".72">
+        </div>
+
+        <div class="control">
+            <div class="label"><span>memory</span><span class="value" id="memoryValue"></span></div>
+            <input id="memory" type="range" min=".9" max=".999" step=".001" value=".985">
+        </div>
+
+        <div class="control">
+            <div class="label"><span>threads</span><span class="value" id="threadsValue"></span></div>
+            <input id="threads" type="range" min="1" max="7" step="1" value="4">
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">interaction</div>
+
+        <div class="control">
+            <div class="label"><span>influence</span><span class="value" id="influenceValue"></span></div>
+            <input id="influence" type="range" min="0" max="2" step=".01" value=".8">
+        </div>
+
+        <div class="control">
+            <div class="label"><span>gravity</span><span class="value" id="gravityValue"></span></div>
+            <input id="gravity" type="range" min="-1" max="1" step=".01" value=".18">
+        </div>
+
+        <div class="control">
+            <div class="label"><span>ripple</span><span class="value" id="rippleValue"></span></div>
+            <input id="ripple" type="range" min="0" max="2" step=".01" value=".75">
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">system</div>
+        <div class="buttons">
+            <button class="action" id="reset">reset</button>
+            <button class="action" id="clear">clear water</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    let w, h, dpr;
+
+    function resize() {
+        dpr = devicePixelRatio || 1;
+        w = innerWidth;
+        h = innerHeight;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        canvas.style.width = w + "px";
+        canvas.style.height = h + "px";
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    addEventListener("resize", resize);
+    resize();
+
+    const DEFAULTS = {
+        flow: .72,
+        memory: .985,
+        threads: 4,
+        influence: .8,
+        gravity: .18,
+        ripple: .75
+    };
+
+    const settings = {...DEFAULTS};
+
+    const mouse = {
+        x: .5,
+        y: .5,
+        px: .5,
+        py: .5,
+        active: false,
+        down: false
+    };
+
+    addEventListener("mousemove", e => {
+        mouse.px = mouse.x;
+        mouse.py = mouse.y;
+        mouse.x = e.clientX / w;
+        mouse.y = e.clientY / h;
+        mouse.active = true;
+        resetIdle();
+    });
+
+    addEventListener("mouseleave", () => {
+        mouse.active = false;
+    });
+
+    addEventListener("mousedown", e => {
+        if (e.target === canvas) mouse.down = true;
+    });
+
+    addEventListener("mouseup", () => {
+        mouse.down = false;
+    });
+
+
+    /* =====================================================
+       FIELD
+    ===================================================== */
+
+    const fieldSize = 90;
+    let field = new Float32Array(fieldSize * fieldSize);
+
+    function fieldIndex(x, y) {
+        return y * fieldSize + x;
+    }
+
+    function sampleField(x, y) {
+        x = ((x % fieldSize) + fieldSize) % fieldSize;
+        y = ((y % fieldSize) + fieldSize) % fieldSize;
+
+        const x0 = Math.floor(x);
+        const y0 = Math.floor(y);
+        const x1 = (x0 + 1) % fieldSize;
+        const y1 = (y0 + 1) % fieldSize;
+
+        const tx = x - x0;
+        const ty = y - y0;
+
+        const a = field[fieldIndex(x0, y0)];
+        const b = field[fieldIndex(x1, y0)];
+        const c = field[fieldIndex(x0, y1)];
+        const d = field[fieldIndex(x1, y1)];
+
+        return (a + (b-a)*tx) * (1-ty) + (c + (d-c)*tx) * ty;
+    }
+
+    function updateField(dt) {
+        const next = new Float32Array(field.length);
+
+        for (let y = 0; y < fieldSize; y++) {
+            for (let x = 0; x < fieldSize; x++) {
+                const i = fieldIndex(x,y);
+
+                const left = field[fieldIndex((x-1+fieldSize)%fieldSize,y)];
+                const right = field[fieldIndex((x+1)%fieldSize,y)];
+                const up = field[fieldIndex(x,(y-1+fieldSize)%fieldSize)];
+                const down = field[fieldIndex(x,(y+1)%fieldSize)];
+
+                const average = (left + right + up + down) * .25;
+
+                next[i] =
+                    field[i] * settings.memory +
+                    average * (1 - settings.memory) -
+                    field[i] * 0.00035;
+            }
+        }
+
+        field = next;
+
+        if (!mouse.active) return;
+
+        const gx = mouse.x * fieldSize;
+        const gy = mouse.y * fieldSize;
+
+        const dx = (mouse.x - mouse.px) * 900;
+        const dy = (mouse.y - mouse.py) * 900;
+        const energy = Math.min(1, Math.sqrt(dx*dx + dy*dy));
+
+        const radius = 7;
+
+        for (let y = -radius; y <= radius; y++) {
+            for (let x = -radius; x <= radius; x++) {
+                const px = Math.floor(gx + x);
+                const py = Math.floor(gy + y);
+
+                if (px < 0 || px >= fieldSize || py < 0 || py >= fieldSize) continue;
+
+                const d = Math.sqrt(x*x+y*y);
+                if (d > radius) continue;
+
+                const falloff = 1-d/radius;
+
+                field[fieldIndex(px,py)] +=
+                    (energy * 2 - 1) *
+                    falloff *
+                    settings.influence *
+                    .018;
+            }
+        }
+    }
+
+
+    /* =====================================================
+       THREADS
+    ===================================================== */
+
+    let threads = [];
+
+    function createThread() {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = .1 + Math.random() * .35;
+
+        return {
+            x: .5 + Math.cos(angle)*radius,
+            y: .5 + Math.sin(angle)*radius,
+            vx: 0,
+            vy: 0,
+            history: [],
+            phase: Math.random()*Math.PI*2,
+            life: 0
+        };
+    }
+
+    function regenerateThreads() {
+        threads = [];
+
+        for (let i = 0; i < settings.threads * 12; i++) {
+            threads.push(createThread());
+        }
+    }
+
+    regenerateThreads();
+
+
+    /* =====================================================
+       RIPPLE
+    ===================================================== */
+
+    let ripples = [];
+
+    canvas.addEventListener("click", e => {
+        ripples.push({
+            x: e.clientX / w,
+            y: e.clientY / h,
+            radius: 0,
+            strength: settings.ripple
+        });
+    });
+
+
+    function updateThreads(dt) {
+        for (const p of threads) {
+            const x = p.x * fieldSize;
+            const y = p.y * fieldSize;
+
+            const eps = 1.2;
+
+            const left = sampleField(x - eps, y);
+            const right = sampleField(x + eps, y);
+            const up = sampleField(x, y - eps);
+            const down = sampleField(x, y + eps);
+
+            const dx = (right - left) / (eps * 2);
+            const dy = (down - up) / (eps * 2);
+
+            /* curl of the scalar field */
+
+            let flowX = dy;
+            let flowY = -dx;
+
+            const flowLength =
+                Math.sqrt(flowX * flowX + flowY * flowY) + 0.00001;
+
+            flowX /= flowLength;
+            flowY /= flowLength;
+
+            const organic =
+                Math.sin(
+                    p.x * 9 +
+                    dt * 0.35 +
+                    p.phase
+                ) * 0.35;
+
+            const organicY =
+                Math.cos(
+                    p.y * 8 -
+                    dt * 0.27 +
+                    p.phase
+                ) * 0.35;
+
+            p.vx +=
+                (flowX + organic) *
+                settings.flow *
+                0.000012 *
+                dt;
+
+            p.vy +=
+                (flowY + organicY) *
+                settings.flow *
+                0.000012 *
+                dt;
+
+
+            /* mouse attraction / repulsion */
+
+            if (mouse.active) {
+                const dx = mouse.x - p.x;
+                const dy = mouse.y - p.y;
+
+                const distance =
+                    Math.sqrt(dx * dx + dy * dy) + 0.002;
+
+                const influence =
+                    Math.exp(-distance * distance * 20);
+
+                const direction =
+                    mouse.down ? 1 : -1;
+
+                const force =
+                    influence *
+                    settings.influence *
+                    0.0000007 *
+                    dt;
+
+                p.vx +=
+                    dx / distance *
+                    force *
+                    direction;
+
+                p.vy +=
+                    dy / distance *
+                    force *
+                    direction;
+            }
+
+
+            /* ripples */
+
+            for (const r of ripples) {
+                const dx = p.x - r.x;
+                const dy = p.y - r.y;
+
+                const distance =
+                    Math.sqrt(dx * dx + dy * dy) + 0.00001;
+
+                const band =
+                    Math.exp(
+                        -Math.pow(
+                            (distance - r.radius) / 0.025,
+                            2
+                        )
+                    );
+
+                const force =
+                    band *
+                    r.strength *
+                    0.000012 *
+                    dt;
+
+                p.vx +=
+                    dx / distance *
+                    force;
+
+                p.vy +=
+                    dy / distance *
+                    force;
+            }
+
+
+            /* velocity damping */
+
+            const damping =
+                Math.pow(0.975, dt);
+
+            p.vx *= damping;
+            p.vy *= damping;
+
+
+            /* hard speed limit */
+
+            const speed =
+                Math.sqrt(
+                    p.vx * p.vx +
+                    p.vy * p.vy
+                );
+
+            const maxSpeed =
+                0.00065;
+
+            if (speed > maxSpeed) {
+                const scale = maxSpeed / speed;
+
+                p.vx *= scale;
+                p.vy *= scale;
+            }
+
+
+            /* movement */
+
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+
+
+            /* wrap */
+
+            if (p.x < 0) p.x += 1;
+            if (p.x > 1) p.x -= 1;
+            if (p.y < 0) p.y += 1;
+            if (p.y > 1) p.y -= 1;
+
+
+            /* trail */
+
+            p.history.push([
+                p.x,
+                p.y
+            ]);
+
+            const maxHistory =
+                24 + settings.memory * 150;
+
+            while (
+                p.history.length >
+                maxHistory
+                ) {
+                p.history.shift();
+            }
+        }
+
+
+        /* ripple decay */
+
+        for (
+            let i = ripples.length - 1;
+            i >= 0;
+            i--
+        ) {
+            const r = ripples[i];
+
+            r.radius += 0.0008 * dt;
+
+            r.strength *=
+                Math.pow(0.986, dt);
+
+            if (
+                r.strength < 0.015 ||
+                r.radius > 0.8
+            ) {
+                ripples.splice(i, 1);
+            }
+        }
+    }
+
+
+    /* =====================================================
+       RENDER
+    ===================================================== */
+
+    function render() {
+        ctx.fillStyle = "rgba(3,5,8,.16)";
+        ctx.fillRect(0,0,w,h);
+
+        const glow = ctx.createRadialGradient(
+            w*.5,h*.5,0,
+            w*.5,h*.5,Math.max(w,h)*.7
+        );
+
+        glow.addColorStop(0,"rgba(80,110,150,.025)");
+        glow.addColorStop(1,"rgba(0,0,0,0)");
+
+        ctx.fillStyle = glow;
+        ctx.fillRect(0,0,w,h);
+
+        for (const p of threads) {
+            if (p.history.length < 2) continue;
+
+            ctx.beginPath();
+
+            for (let i = 0; i < p.history.length; i++) {
+                const point = p.history[i];
+                const x = point[0]*w;
+                const y = point[1]*h;
+
+                if (i === 0)
+                    ctx.moveTo(x,y);
+                else
+                    ctx.lineTo(x,y);
+            }
+
+            const alpha =
+                Math.min(.14,p.history.length*.0025);
+
+            ctx.strokeStyle =
+                `rgba(210,225,255,${alpha})`;
+
+            ctx.lineWidth = .7;
+            ctx.stroke();
+
+            const head = p.history[p.history.length-1];
+
+            ctx.beginPath();
+            ctx.arc(head[0]*w,head[1]*h,1.15,0,Math.PI*2);
+            ctx.fillStyle = "rgba(235,240,255,.32)";
+            ctx.fill();
+        }
+
+        for (const r of ripples) {
+            const x = r.x*w;
+            const y = r.y*h;
+            const radius = r.radius*Math.min(w,h);
+
+            ctx.beginPath();
+            ctx.arc(x,y,radius,0,Math.PI*2);
+            ctx.strokeStyle =
+                `rgba(220,235,255,${r.strength*.12})`;
+            ctx.lineWidth = .8;
+            ctx.stroke();
+        }
+
+        if (mouse.active) {
+            const x = mouse.x*w;
+            const y = mouse.y*h;
+
+            const glow = ctx.createRadialGradient(
+                x,y,0,
+                x,y,Math.min(w,h)*.09
+            );
+
+            glow.addColorStop(0,"rgba(220,235,255,.035)");
+            glow.addColorStop(1,"rgba(220,235,255,0)");
+
+            ctx.fillStyle = glow;
+            ctx.fillRect(
+                x-Math.min(w,h)*.09,
+                y-Math.min(w,h)*.09,
+                Math.min(w,h)*.18,
+                Math.min(w,h)*.18
+            );
+        }
+    }
+
+
+    /* =====================================================
+       LOOP
+    ===================================================== */
+
+    let last = performance.now();
+
+    function frame(now) {
+        const dt = Math.min(32,now-last);
+        last = now;
+
+        updateField(dt);
+        updateThreads(dt);
+        render();
+
+        requestAnimationFrame(frame);
+    }
+
+    requestAnimationFrame(frame);
+
+
+    /* =====================================================
+       UI
+    ===================================================== */
+
+    const menuButton = document.getElementById("menuButton");
+    const controls = document.getElementById("controls");
+    const closeButton = document.getElementById("closeButton");
+
+    let menuOpen = false;
+    let idleTimer;
+
+    function openMenu() {
+        menuOpen = true;
+        controls.classList.add("open");
+        menuButton.classList.add("open");
+        clearTimeout(idleTimer);
+    }
+
+    function closeMenu() {
+        menuOpen = false;
+        controls.classList.remove("open");
+        menuButton.classList.remove("open");
+        resetIdle();
+    }
+
+    menuButton.onclick = () => menuOpen ? closeMenu() : openMenu();
+    closeButton.onclick = closeMenu;
+
+    function resetIdle() {
+        clearTimeout(idleTimer);
+
+        if (menuOpen) return;
+
+        menuButton.classList.remove("hidden");
+
+        idleTimer = setTimeout(() => {
+            if (!menuOpen)
+                menuButton.classList.add("hidden");
+        },3200);
+    }
+
+    resetIdle();
+
+
+    /* =====================================================
+       CONTROLS
+    ===================================================== */
+
+    const controlMap = {
+        flow: v => v.toFixed(2),
+        memory: v => v.toFixed(3),
+        threads: v => Math.round(v),
+        influence: v => v.toFixed(2),
+        gravity: v => v.toFixed(2),
+        ripple: v => v.toFixed(2)
+    };
+
+    for (const [id,format] of Object.entries(controlMap)) {
+        const input = document.getElementById(id);
+        const output = document.getElementById(id+"Value");
+
+        function update() {
+            settings[id] = parseFloat(input.value);
+            output.textContent = format(settings[id]);
+
+            if (id === "threads")
+                regenerateThreads();
+        }
+
+        input.addEventListener("input",update);
+        update();
+    }
+
+
+    /* =====================================================
+       BUTTONS
+    ===================================================== */
+
+    document.getElementById("reset").onclick = () => {
+        Object.assign(settings,DEFAULTS);
+
+        for (const [id,value] of Object.entries(DEFAULTS)) {
+            const input = document.getElementById(id);
+            input.value = value;
+            document.getElementById(id+"Value").textContent =
+                controlMap[id](value);
+        }
+
+        regenerateThreads();
+    };
+
+    document.getElementById("clear").onclick = () => {
+        field.fill(0);
+
+        for (const p of threads)
+            p.history.length = 0;
+
+        ripples = [];
+    };
+
+
+    /* =====================================================
+       FULLSCREEN
+    ===================================================== */
+
+    document.addEventListener("keydown",e => {
+        if (e.key.toLowerCase() === "f" && !menuOpen)
+            document.documentElement.requestFullscreen?.();
+    });
+</script>
+
+</body>
+</html>
+

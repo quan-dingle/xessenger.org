@@ -1573,17 +1573,7 @@
 
     let fullscreenTriggered = false;
 
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "f") document.click()
-    })
-
-    document.addEventListener("click", e => {
-
-        /*
-            Fullscreen is intentionally only triggered by
-            the first click on the actual canvas.
-        */
-
+    const fullScreenCall = e => {
         if (
             fullscreenTriggered ||
             e.target !== canvas
@@ -1597,7 +1587,10 @@
             .requestFullscreen?.()
             .catch(() => {
             });
-    });
+    }
+
+    document.addEventListener("keydown", fullScreenCall)
+    document.addEventListener("click", fullScreenCall);
 
 
     /* =====================================================
