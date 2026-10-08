@@ -30,7 +30,7 @@ async function init() {
         const roomsMap = data.rooms || {};
         const roomIds = Object.keys(roomsMap);
 
-        activeRoom = Number(getCookie("room")) || Number(roomIds[0]) || 0;
+        activeRoom = ""+(getCookie("room") || (roomIds[0]) || 0);
         document.cookie = `room=${activeRoom}; path=/`;
 
         roomName = roomsMap[activeRoom] || activeRoom;
@@ -40,7 +40,7 @@ async function init() {
         if (roomSelector) {
             roomSelector.innerHTML = roomIds.map(room => {
                 const alias = roomsMap[room];
-                const isSelected = Number(room) === Number(activeRoom) ? "selected" : "";
+                const isSelected = ""+(room) === ""+(activeRoom) ? "selected" : "";
                 return `<option value="${room}" ${isSelected}>${alias}</option>`;
             }).join("");//+ `<option value="create_room">+</option>`;
         }
@@ -139,8 +139,7 @@ document.addEventListener("keypress", e => { if (e.key === "Escape") open_prefs(
 function changeRoom(room) {
     //if (room==="create_room") return createRoom();
     document.cookie = "room=" + room+"; path=/";
-    print(room,activeRoom);
-    if ((!!Number(room))!==(!!activeRoom)) { //room!==activeRoom&&(!room||!activeRoom
+    if (activeRoom!==room&&(activeRoom||room)) { //room!==activeRoom&&(!room||!activeRoom
         scriptChange = true;
         window.remove_script();
         delete window.remove_script;
@@ -152,7 +151,7 @@ function changeRoom(room) {
         newScript.id = "bg-script";
         document.body.appendChild(newScript);
     }
-    activeRoom = Number(room);
+    activeRoom = ""+(room);
     void start();
 }
 
@@ -680,8 +679,7 @@ async function showRoomOverview(id) {
         }
 
         const room = await res.json();
-        print(room.members, Array.isArray(room.members), room.members?.length);
-        print(room);
+        print(room)
 
         panel.innerHTML = `
             <div class="room-overview-header">
@@ -807,13 +805,8 @@ function showAddRoomUser(roomId, panel) {
         try {
             const res = await fetch("/api/add-user", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    id: roomId,
-                    name
-                })
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify([name])
             });
 
             if (!res.ok) {

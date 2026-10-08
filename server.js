@@ -11,8 +11,7 @@ loadHistory();
 /*
 TODO:|\/\|\/\|\/\|\/\|\/\|\/\|\/
 - migrate history loading from /stream endpoint to /history because stream keeps failing
-- user and server settings
-- room creation
+- user settings
 - privacy types
 - better room selector
 */
@@ -67,8 +66,7 @@ const server = http.createServer((req, res) => {
     }
 
 
-    roomsDB = JSON.parse(fs.readFileSync("rooms.json"));
-    DB = JSON.parse(fs.readFileSync("database.json"))
+    refreshDBs();
     const token = getCookie(req, "token");
     const user = DB.users[token] ?? {};
 
@@ -100,7 +98,7 @@ const server = http.createServer((req, res) => {
         }
 
         DB.users[token] = {name:usr, rooms: [0], created: {ip: req.remoteAddress, timestamp: Date.now()}};
-        fs.writeFileSync("database.json", JSON.stringify(DB, null, 2));
+        dumpDBs();
         console.log(token, "signed up via", req.url);
         res.writeHead(200, {"Content-Type": "application/json"});
         res.end("all well"); return;
@@ -204,30 +202,48 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    const rooms = DB["users"][token]["rooms"]
-    const room = Number(getCookie(req, "room")) || rooms[0];
+    const rooms = DB["users"][token]["rooms"].map(r=>""+r)
+    const room = ""+(getCookie(req, "room") ?? rooms[0]);
     if (!rooms.includes(room)) {
-        res.writeHead(200, {"Content-Type": "text/html"});
+        res.writeHead(401, {"Content-Type": "text/html"});
         console.log(token,"with authorization for rooms",rooms.join(", "),"tried to access room",room)
         res.end("you are not authorized for this room!"); return;
     }
 
     if (req.url.startsWith("/api/room-data")) {
         const r = roomsDB[room];
-        console.log(user.name, "requested data from room", r.alias)
         res.writeHead(200, {"Content-Type": "application/json"});
         res.end(JSON.stringify({
             id:room,
             alias:r.alias,
             description: r.description,
-            members: r.members.map(m=>DB.users[m].name),
-            admins: [r.created.creator],
+            members: r.members.map(m=>DB.users[m]?.name),
+            admins: [DB.users[r.created.creator]?.name],
             created:r.created.timestamp
         })); return;
     }
 
     if (req.url === "/api/add-user") {
-        //TODO
+        let body = "";
+        req.on("data", chunk => {body += chunk;});
+        req.on("end", () => { try {
+            const newMembers = JSON.parse(body);
+            newMembers.forEach((m) => {
+                const ntoken = Object.entries(DB.users).find(([token, user]) => user.name === m)?.[0];
+                if (!ntoken) throw new Error("user does not exist");
+                console.log(token,"added",ntoken,"to room",room);
+                DB.users[ntoken].rooms.push(room);
+                roomsDB[room].members.push(ntoken);
+                dumpDBs();
+            })
+            res.writeHead(200, {"Content-Type": "text/plain"});
+            res.end("OK");
+        } catch(err) {
+            console.log(err,"- received invalid member invitation request from",token+":",body);
+            res.writeHead(403, {"Content-Type": "text/plain"});
+            res.end("BAD");
+        }});
+        return;
     }
 
     if (req.url.startsWith("/background.js")) {
@@ -386,10 +402,7 @@ const server = http.createServer((req, res) => {
                 else
                     subscriptions.push(subscription);
 
-                fs.writeFileSync(
-                    "database.json",
-                    JSON.stringify(DB, null, 2)
-                );
+                dumpDBs();
 
                 res.writeHead(200, {"Content-Type": "application/json"});
                 res.end(JSON.stringify({ok: true}));
@@ -421,11 +434,7 @@ const server = http.createServer((req, res) => {
                         DB.users[token].pushSubscriptions.filter(
                             s => s.endpoint !== parsed.endpoint
                         );
-
-                    fs.writeFileSync(
-                        "database.json",
-                        JSON.stringify(DB, null, 2)
-                    );
+                    dumpDBs();
                 }
 
                 res.writeHead(200, {"Content-Type": "application/json"});
@@ -470,18 +479,14 @@ function addUserToRoom(userid,roomid,initiator=null) {
     DB[userid].rooms.push(roomid);
     roomsDB[roomid].members.push(userid);
     roomsDB[roomid].size += 1;
-
-    fs.writeFileSync("rooms.json",JSON.stringify(roomsDB));
-    fs.writeFileSync("database.json",JSON.stringify(DB));
+    dumpDBs();
 }
 
 function leaveRoom(userid, roomid, initiator=null) {
     if (!DB[userid].rooms.includes(roomid)) return false;
     DB[userid].rooms = DB[userid].rooms.filter(id => id !== roomid);
     roomsDB[roomid].members = roomsDB[roomid].members.filter(id => id !== userid);
-
-    fs.writeFileSync("rooms.json",JSON.stringify(roomsDB));
-    fs.writeFileSync("database.json",JSON.stringify(DB));
+    dumpDBs();
 }
 
 function createRoom(token, name=null, desc=null, privacy=null) {
@@ -503,9 +508,7 @@ function createRoom(token, name=null, desc=null, privacy=null) {
         builtin:false
     }
     DB.users[token].rooms.push(roomId);
-
-    fs.writeFileSync("rooms.json",JSON.stringify(roomsDB));
-    fs.writeFileSync("database.json",JSON.stringify(DB));
+    dumpDBs();
     return true
 }
 
@@ -581,11 +584,7 @@ async function sendPushNotifications(room, msg, senderToken) {
                             user.pushSubscriptions.filter(
                                 s => s.endpoint !== subscription.endpoint
                             );
-
-                        fs.writeFileSync(
-                            "database.json",
-                            JSON.stringify(DB, null, 2)
-                        );
+                        dumpDBs();
                     } else {
                         console.error(
                             "Push notification failed:",
@@ -608,6 +607,15 @@ function loadHistory(historyFile="history.json") {
     catch (e) {}
 }
 
+function refreshDBs() {
+    roomsDB = JSON.parse(fs.readFileSync("rooms.json"));
+    DB = JSON.parse(fs.readFileSync("database.json"));
+}
+
+function dumpDBs() {
+    fs.writeFileSync("rooms.json",JSON.stringify(roomsDB,null,2), "utf8");
+    fs.writeFileSync("database.json",JSON.stringify(DB,null,2), "utf8");
+}
 
 function gracefulShutdown(signalOrError, SAVE_MESSAGES=false, historyFile="history.json", originUser="", originPath="") {
     console.log(`\nInitiating ${SAVE_MESSAGES?"soft":"hard"} shutdown due to: ${signalOrError}`);
