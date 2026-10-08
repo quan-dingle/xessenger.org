@@ -54,10 +54,31 @@ console.log("running on port " + PORT);
 
 // MAIN SERVER
 const server = http.createServer((req, res) => {
+    if (req.url === "/manifest.json") {
+        res.writeHead(200, {"Content-Type": "application/json"});
+        res.end(fs.readFileSync("public/manifest.json")); return;
+    }
+    if (req.url === "/icon-192.png") {
+        res.writeHead(200, {"Content-Type": "image/png"});
+        res.end(fs.readFileSync("assets/icon-192.png")); return;
+    }
+    if (req.url === "/icon-512.png") {
+        res.writeHead(200, {"Content-Type": "image/png"});
+        res.end(fs.readFileSync("assets/icon-512.png")); return;
+    }
+
+
     roomsDB = JSON.parse(fs.readFileSync("rooms.json"));
     DB = JSON.parse(fs.readFileSync("database.json"))
     const token = getCookie(req, "token");
     const user = DB.users[token] ?? {};
+
+    if (req.url.startsWith("/token/")) {
+    	const token = decodeURIComponent(req.url.slice(7));
+    	res.writeHead(302, {"Set-Cookie": `token=${encodeURIComponent(token)}; Path=/; SameSite=Lax; Max-Age=2147483647`,"Location": "/"});
+        res.end();
+        return;
+    }
 
     // UNAUTHORIZED USER - token prompt
     if (!token || !isValid(token)) {
@@ -126,10 +147,6 @@ const server = http.createServer((req, res) => {
     if (req.url === "/geodata.json") {
         res.writeHead(200, {"Content-Type": "text/plain"});
         res.end(fs.readFileSync("assets/geodata.json").toString()); return;
-    }
-    if (req.url === "/manifest.json") {
-        res.writeHead(200, {"Content-Type": "application/json"});
-        res.end(fs.readFileSync("public/manifest.json")); return;
     }
 
 
