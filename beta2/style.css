@@ -1,0 +1,297 @@
+body {
+  background-color:#000;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  font-family: "Space Mono", consolas, "Courier New", monospace;
+  color: rgba(255,255,255,.95);
+  user-select: none;
+}
+
+@keyframes hoverBright {
+  from {filter: brightness(1)}
+  to {filter: brightness(1.5)}
+}
+
+@keyframes hoverBig {
+  from {transform: scale(1)}
+  to {transform: scale(1.1);transform-origin:center center}
+}
+
+
+#background {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+}
+
+#app-container {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-direction: column;
+    width: 100%;
+    height: 100dvh;
+    z-index: 1;
+    background-color: rgba(30, 30, 30, 0.3);
+    backdrop-filter: blur(100px);
+    -webkit-backdrop-filter: blur(100px);
+}
+
+
+#stars {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+}
+
+
+#app-container > h1,
+#app-container > #container-section{
+    position: relative;
+    z-index: 1;
+}
+.design-selector {
+    position: fixed;
+    z-index: 1;
+}
+
+
+h1 {
+  margin-top: 10%;
+  cursor: pointer;
+  text-align: center;
+  text-shadow: 0 0 50px #33A, 0 0 5px #FFF;
+  font-size: 5em;
+  color: #000;
+}
+
+h1:hover {
+  filter: brightness(1.5);
+  text-shadow: 0 0 50px #FFF, 0 0 20px rgba(255,255,255,.1);
+  animation: hoverBig 1.5s ease-out infinite alternate;
+}
+
+.container-section {
+  display:flex;
+  justify-content: space-between;
+}
+
+.container {
+  box-shadow: 0 0 50px 1px rgba(30,30,150,.5), 0 0 10px 1px #000;
+  border-radius:25px;
+  border: 2px solid rgba(50,50,50,0.5);
+  background-color: rgba(30,30,30,.5);
+  backdrop-filter: blur(4px);
+  padding: 20px;
+  margin: 10px;
+  width: 40%;
+  cursor: pointer;
+}
+.container:hover {
+  animation: hoverBright .5s ease forwards;
+  border-color: rgba(255, 255, 255, .11);
+  box-shadow:0 0 50px 1px rgba(30,30,150,.5), 0 0 10px 1px #000, 0 0 5px 5px rgba(255, 255, 255, .05);
+}
+.container input {
+  width: 70%;
+  min-width:0;
+  padding: 2px;
+}
+.container button {
+  width: 20%;
+  padding: 2px;
+}
+.container p {
+  color: #BBB;
+}
+
+input {
+  background-color: rgba(0,0,0,0.3);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 4px;
+  font: inherit;
+  color: inherit;
+}
+input:focus {
+  border: 2px solid transparent;
+  border-image: linear-gradient(to bottom right, purple, blue, green, yellow, red);
+}
+
+button {
+  background-color: rgba(150,255,255,0.1);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 4px;
+  font: inherit;
+  color: inherit;
+}
+
+#logo-container {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    margin-bottom: 10%;
+}
+#logo-container > *{
+    position:absolute;
+    display:block;
+    width:100%;
+    max-width:300px;
+    max-height:300px;
+    aspect-ratio:1;
+    margin:0 auto;
+    overflow:visible;
+    margin-bottom: 30%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}
+
+
+/* DESIGN SELECTOR */
+
+.design-selector {
+    width: 70%;
+    padding: 14px 16px;
+    position: fixed;
+    bottom: 5%;
+    border: 1px solid rgba(255,255,255,.07);
+    border-radius: 12px;
+    background: rgba(20,20,20,.35);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 10px 2px black, 0 0 10px 1px white;
+}
+.design-selector:hover {
+  animation: hoverBright .5s ease-in forwards;
+}
+
+
+/* lil label in center up top*/
+.design-label {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 12px;
+    letter-spacing: .08em;
+    color: rgba(220,220,220,.5);
+}
+
+
+
+/* slider */
+.design-slider {
+    position: relative;
+    height: 35px;
+    background: linear-gradient(to right,
+        rgba(255,150,50,0.3),
+        rgba(255,255,255,0.3),
+        rgba(255,50,200,0.3),
+        rgba(0,0,0,0.3));
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 0 10px 2px black, 0 0 10px 1px white;
+}
+
+#design-range {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    margin: 0;
+
+    appearance: none;
+    -webkit-appearance: none;
+
+    background: transparent;
+    cursor: pointer;
+}
+
+#design-range::-moz-range-track {
+    height: 3px;
+    border-radius: 10px;
+    appearance: none;
+
+    /*background:
+        linear-gradient(
+            90deg,
+            rgba(170,120,255,.6),
+            rgba(255,255,255,.12)
+        );*/
+}
+
+
+/* knob */
+#design-range::-moz-range-thumb {
+    width: 50px;
+    height: 50px;
+    border: 1px solid rgba(255,255,255,.5);
+    border-radius: 25%;
+    background: rgba(150,0,150,0.3);
+    backdrop-filter: blur(5px);
+    box-shadow:
+        0 0 6px rgba(180,140,255,.7),
+        0 0 16px rgba(150,150,150,.5);
+}
+
+
+
+/* four position markers */
+.design-ticks {
+    position: absolute;
+    left: 0px;
+    right: 0px;
+    top: 0;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+}
+
+.design-ticks span {
+    width: 3px;
+    height: 35px;
+    border-radius: 5%;
+    background: rgba(255,255,255,.03);
+}
+
+
+
+
+/* ===========================================
+   |||||||||||  PHONE SCREENS  |||||||||||||||
+   ===========================================*/
+
+
+@media (max-width: 728px) {
+    .container-section {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 20px;
+    }
+
+    .container {
+        width: 90%;
+        max-width: 500px;
+    }
+
+    .container input {
+        width: 100%;
+        margin: 0;
+        margin-bottom: 8px;
+    }
+
+    .container button {
+        width: 100%;
+        margin: 0;
+    }
+}

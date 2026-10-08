@@ -1,0 +1,50 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="background"></canvas>
+
+<div id="app-container">
+<canvas id="stars"></canvas>
+<h1>Xessenger</h1>
+<div class="container-section">
+<div class="container" id="token-section">
+	<h2>I have a Token</h2>
+	<p>use this option if you own a token</p>
+	<input id="token-field" type="text" placeholder=" Enter your Token">
+	<button id="submit-token">Enter</button>
+</div>
+<div class="container" id="username-section">
+	<h2>I'm new Here</h2>
+	<p>use this option if you're not associated</p>
+	<input id="username-field" type="text" placeholder=" Enter your Username">
+	<button id="submit-token">Enter</button>
+</div>
+</div>
+<div id="logo-container">
+	<canvas id="logo-stat"></canvas>
+	<canvas id="logo-anim"></canvas>
+</div>
+<div class="design-selector">
+    <div class="design-label">
+        <span>DESIGN</span>
+    </div>
+
+    <div class="design-slider">
+        <input id="design-range" type="range" min="0" max="3" step="1" value="0" >
+        <div class="design-ticks">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </div>
+</div>
+</div>
+<script src="stars.js"></script>
+<script src="bg.js"></script>
+<script src="x.js"></script>
+</body>
+</html>
