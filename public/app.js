@@ -734,7 +734,9 @@ async function showRoomOverview(id) {
                 ${
                 room.admins?.includes(name)
                     ? `<span class="member-role">ADMIN</span>`
-                    : ""
+                    : room.admins.includes(myName) ?
+                        `<span class="member-kick">remove</span>`
+                            : ""
             }
             </div>
         `;

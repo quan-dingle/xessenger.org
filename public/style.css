@@ -422,6 +422,12 @@ button:active {
   font-weight: 600;
 }
 
+.member-kick {
+  color: #fcd37d;
+  font-size: 10px;
+  font-weight: 600;
+}
+
 .room-add-user-panel {
   margin-top: 15px;
   padding: 12px;
