@@ -16,7 +16,7 @@
         <div id="room-area">
             <select id="room-selector"></select><button id="new-room" onclick="createRoom()">+</button>
         </div>
-        <img id="pfp" src="pfp"><button id="logout" type="button" title="Sign out" aria-label="Sign out">↪</button>
+        <img id="pfp" src="pfp" title="Edit profile" role="button" tabindex="0"><button id="logout" type="button" title="Sign out" aria-label="Sign out">↪</button>
     </div>
     <div id="chat"></div>
     <div id="bottom">
@@ -26,6 +26,7 @@
         <button id="upload">+</button>
     </div>
 </div>
+<div id="push-prompt-host" aria-live="polite"></div>
 <script src="app.js"></script>
 <script src="background.js" id="bg-script"></script>
 </body>

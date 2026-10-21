@@ -919,7 +919,7 @@ body.light-mode .time {
   height: auto;
   border: none;
   border-radius: 0;
-  transform: none;        
+  transform: none;
 }
 /* =========================================================
    CONTEXT MENU
@@ -1058,7 +1058,7 @@ body.light-mode .time {
 .attachment-bubble {
   width: fit-content;
   max-width: 85%;
-  
+
   margin-bottom: 4px;
 
   overflow: hidden;
@@ -1067,7 +1067,7 @@ body.light-mode .time {
 
   border-radius: 16px;
   border: 2px solid rgba(var(--bub),calc(pow(var(--alpha),.75)));
-  
+
   backdrop-filter: blur(2px);
 
   box-shadow: 0 2px 10px rgba(0, 0, 0, .25);
@@ -1625,3 +1625,32 @@ body.light-mode .time {
 .preview .file-preview strong{overflow-wrap:anywhere;max-width:220px;font-size:12px}.preview .file-preview span{font-size:11px;opacity:.65;white-space:nowrap}
 .remove-upload{position:absolute;right:3px;top:3px;border:0;border-radius:50%;width:25px;height:25px;cursor:pointer;background:#383a40;color:white}
 body.light-mode .file-card,body.light-mode .link-preview{background:rgba(245,245,247,.92);color:#222}
+
+/* Profile editor */
+#pfp { cursor: pointer; object-fit: cover; }
+#pfp:focus-visible { outline: 2px solid rgb(var(--my-bub)); outline-offset: 3px; }
+.profile-editor { position: relative; width: min(440px, 92vw); }
+.profile-editor h2 { margin: 0 0 18px; }
+.profile-avatar-row { display: flex; align-items: center; gap: 14px; margin: 12px 0 20px; }
+#profile-avatar-preview { width: 76px; height: 76px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); }
+.profile-editor .form-field { display: flex; flex-direction: column; gap: 7px; margin: 14px 0; }
+.profile-editor input:not([type=file]), .profile-editor textarea { width: 100%; box-sizing: border-box; padding: 11px 12px; color: var(--text); background: var(--input); border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; }
+.profile-editor textarea { resize: vertical; }
+.profile-close { position: absolute; top: 12px; right: 12px; }
+.profile-status { min-height: 1.2em; color: var(--text-muted); font-size: .9rem; }
+.room-privacy-badge { display: inline-flex; margin-top: 10px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); font-size: .8rem; }
+.room-invite { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; }
+.room-invite button { border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); background: var(--surface); cursor: pointer; }
+
+/* Push opt-in is a fixed card, outside the scrollable chat transcript. */
+#push-prompt-host { position: fixed; z-index: 50; left: 50%; bottom: 84px; transform: translateX(-50%); width: min(540px, calc(100vw - 24px)); pointer-events: none; }
+#push-prompt { position: relative; display: flex; align-items: center; gap: 12px; padding: 16px 18px; color: var(--text); background: var(--modal-bg); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 14px 44px rgba(0,0,0,.32); backdrop-filter: blur(18px); pointer-events: auto; }
+.push-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
+.push-copy strong { font-size: .98rem; }
+.push-copy span, .push-copy small { color: var(--text-muted); font-size: .82rem; }
+#push-confirmation, #stop-asking { border: 0; border-radius: 9px; padding: 9px 12px; white-space: nowrap; cursor: pointer; }
+#push-confirmation { background: rgb(var(--my-bub)); color: white; }
+#push-confirmation:disabled { opacity: .65; cursor: wait; }
+#stop-asking { color: var(--text-muted); background: transparent; }
+#push-dismiss { position: absolute; top: 4px; right: 7px; border: 0; background: transparent; color: var(--text-muted); font-size: 20px; cursor: pointer; }
+@media (max-width: 480px) { #push-prompt { align-items: stretch; flex-wrap: wrap; padding-top: 22px; } .push-copy { flex-basis: 100%; } #push-confirmation, #stop-asking { flex: 1; } }

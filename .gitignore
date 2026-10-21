@@ -12,3 +12,5 @@ upload.py
 
 # Runtime-only accounts, client sessions and chat uploads
 uploads/
+
+.push-config.json

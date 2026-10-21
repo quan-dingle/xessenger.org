@@ -42,9 +42,10 @@ const ICON = fs.readFileSync("public/favicon.ico");
 const TOKEN_PROMPT = fs.readFileSync("public/tokenPrompt.html").toString();
 const SIGNUP_PROMPT = fs.readFileSync("public/signUpPrompt.html").toString();
 
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:admin@xessenger.org";
+const pushConfig = loadJson(".push-config.json", {});
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || pushConfig.VAPID_PUBLIC_KEY || "";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || pushConfig.VAPID_PRIVATE_KEY || "";
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || pushConfig.VAPID_SUBJECT || "mailto:admin@antrox.org";
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
     webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
@@ -251,6 +252,45 @@ const server = http.createServer(async (req, res) => {
     }
 
 
+    if (pathname === "/api/profile" && req.method === "GET") {
+        const profile = DB.users[token] || {};
+        res.writeHead(200, {"Content-Type":"application/json", "Cache-Control":"no-store"});
+        res.end(JSON.stringify({name: profile.name || "", bio: profile.bio || "", avatar: profile.avatar || ""}));
+        return;
+    }
+    if (pathname === "/api/profile" && req.method === "POST") {
+        try {
+            const body = await readJson(req, 180000);
+            const name = String(body.name || "").trim();
+            const bio = String(body.bio || "").trim();
+            const avatar = String(body.avatar || "");
+            if (!/^[\p{L}\p{N}_. -]{2,32}$/u.test(name)) throw httpError(400, "Display name must be 2–32 characters.");
+            if (bio.length > 240) throw httpError(400, "Bio is limited to 240 characters.");
+            if (avatar && (!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(avatar) || avatar.length > 140000)) throw httpError(400, "Avatar must be a PNG, JPEG or WebP under 100 KB.");
+            if (Object.entries(DB.users).some(([otherToken, u]) => otherToken !== token && String(u.name || "").toLowerCase() === name.toLowerCase())) throw httpError(409, "That display name is already in use.");
+            DB.users[token].name = name;
+            DB.users[token].bio = bio;
+            DB.users[token].avatar = avatar;
+            const linked = Object.values(accountsDB.accounts).find(a => a.legacyToken === token);
+            if (linked) linked.username = name.slice(0,24);
+            dumpDBs(); saveAccounts();
+            res.writeHead(200, {"Content-Type":"application/json", "Cache-Control":"no-store"});
+            res.end(JSON.stringify({ok:true, name, bio, avatar}));
+        } catch (e) { sendApiError(res, e); }
+        return;
+    }
+    if (pathname === "/api/join-room" && req.method === "POST") {
+        try {
+            const body = await readJson(req, 4096);
+            const id = String(body.id || "");
+            const invite = String(body.invite || "");
+            const target = roomsDB[id];
+            if (!target || target.privacy !== "Public" || !target.inviteCode || !crypto.timingSafeEqual(Buffer.from(invite.padEnd(64, "0").slice(0,64)), Buffer.from(String(target.inviteCode).padEnd(64, "0").slice(0,64))) || invite.length !== target.inviteCode.length) throw httpError(403, "This invite is invalid or the room is not public.");
+            if (!target.members.includes(token)) { target.members.push(token); DB.users[token].rooms ||= []; if (!DB.users[token].rooms.some(r => String(r) === id)) DB.users[token].rooms.push(id); target.size = target.members.length; dumpDBs(); }
+            res.writeHead(200, {"Content-Type":"application/json"}); res.end(JSON.stringify({ok:true,id}));
+        } catch (e) { sendApiError(res, e); }
+        return;
+    }
     if (pathname === "/api/create-room" && req.method === "POST") {
         try {
             const body = await readJson(req, 32768);
@@ -258,6 +298,7 @@ const server = http.createServer(async (req, res) => {
             const desc = String(body.desc || "").trim().slice(0, 500);
             const privacy = ["Public", "Private", "Confidential", "Top-Secret"].includes(body.privacy) ? body.privacy : "Public";
             if (!alias) throw httpError(400, "Room name is required.");
+            if (privacy === "Confidential") throw httpError(501, "Confidential rooms are not available until end-to-end encryption and secure key sharing are implemented.");
             const id = createRoom(token, alias, desc, privacy);
             res.writeHead(201, {"Content-Type": "application/json"});
             res.end(JSON.stringify({ok: true, id}));
@@ -280,6 +321,8 @@ const server = http.createServer(async (req, res) => {
 
         const userData = {
             name: rawUser?.name ?? defaultName,
+            bio: rawUser?.bio ?? "",
+            avatar: rawUser?.avatar ?? "",
             rooms: roomAliases
         };
 
@@ -364,12 +407,15 @@ const server = http.createServer(async (req, res) => {
     if (req.url.startsWith("/api/room-data")) {
         const r = roomsDB[room];
         res.writeHead(200, {"Content-Type": "application/json"});
+        if (r.privacy === "Public" && !r.inviteCode) { r.inviteCode = crypto.randomBytes(24).toString("base64url"); dumpDBs(); }
         res.end(JSON.stringify({
             id:room,
             alias:r.alias,
             description: r.description,
             members: r.members.map(m=>DB.users[m]?.name),
             admins: [DB.users[r.created.creator]?.name],
+            privacy: r.privacy || "Public",
+            inviteCode: r.privacy === "Public" ? (r.inviteCode || (r.inviteCode = crypto.randomBytes(24).toString("base64url"))) : null,
             created:r.created.timestamp
         })); return;
     }
@@ -378,6 +424,8 @@ const server = http.createServer(async (req, res) => {
         let body = "";
         req.on("data", chunk => {body += chunk;});
         req.on("end", () => { try {
+            if (roomsDB[room].created.creator !== token) throw new Error("Only room admins can add users");
+            if (roomsDB[room].privacy === "Confidential") throw new Error("Confidential rooms are not enabled until end-to-end encryption is implemented");
             const newMembers = JSON.parse(body);
             newMembers.forEach((m) => {
                 const nuToken = Object.entries(DB.users).find(([token, user]) => user.name === m)?.[0];
@@ -535,7 +583,7 @@ const server = http.createServer(async (req, res) => {
             history[room].forEach(msg => {
                 res.write(`data: ${JSON.stringify(msg)}\n\n`);
             });
-            
+
         }
         if (!openConnections[room]) openConnections[room] = [];
         openConnections[room].push(res);
@@ -777,6 +825,7 @@ function createRoom(token, name=null, desc=null, privacy=null) {
             timestamp: Date.now()
         },
         privacy: privacy??"Public",
+        inviteCode: (privacy ?? "Public") === "Public" ? crypto.randomBytes(24).toString("base64url") : null,
         builtin:false
     }
     DB.users[token].rooms.push(roomId);

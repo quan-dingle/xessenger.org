@@ -16,7 +16,6 @@ const appContainer = document.getElementById('app-container');
 TODO:
 - embeds for tt, reels
 - room config
-- profile config
 - admin panel
 */
 
@@ -28,6 +27,8 @@ async function init() {
 
         myName = data.name;
         const roomsMap = data.rooms || {};
+        const pfp = document.getElementById("pfp");
+        if (pfp) pfp.src = data.avatar || "/pfp";
         const roomIds = Object.keys(roomsMap);
 
         activeRoom = ""+(getCookie("room") || (roomIds[0]) || 0);
@@ -45,6 +46,13 @@ async function init() {
             }).join("");//+ `<option value="create_room">+</option>`;
         }
 
+        const query = new URLSearchParams(location.search);
+        if (query.has("join") && query.has("invite")) {
+            const joinResponse = await fetch("/api/join-room", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:query.get("join"),invite:query.get("invite")})});
+            const joinData = await joinResponse.json().catch(()=>({}));
+            if (!joinResponse.ok) alert(joinData.error || "Could not join this room.");
+            else { document.cookie=`room=${joinData.id}; path=/`; location.replace(location.pathname); }
+        }
         const prefs = localStorage.getItem("prefs");
         if (prefs) applyPrefs(JSON.parse(prefs));
 
@@ -72,43 +80,42 @@ async function start() {
 }
 void start();
 
-// asks for push service
+// Push opt-in lives in a fixed app-level card, never inside the scrolling transcript.
 async function askForPushes() {
     const prefs = JSON.parse(localStorage.getItem("prefs")) || {};
-
-    if (!prefs.dontAskPushes && !prefs.pushNotifications) {
-        const pushPrompt = document.createElement("div");
-        pushPrompt.id = "push-prompt";
-        pushPrompt.innerHTML = "<h3>want to get notified of new messages?</h3><p id='push-confirmation'>click here to receive push notifications</p><p id='stop-asking'>don't ask me again</p>";
-        document.getElementById("chat").appendChild(pushPrompt);
-        const pushConfirmation = document.getElementById("push-confirmation");
-        const pushRefusal = document.getElementById("stop-asking");
-
-        pushRefusal.addEventListener("click", () => {
-            prefs.dontAskPushes=true;
-            localStorage.setItem("prefs", JSON.stringify(prefs));
-
-            pushPrompt.remove();
-        })
-
-        pushConfirmation.addEventListener("click", async () => {
-            if (await setupPushNotifications()) {
-                prefs.pushNotifications = true;
-                localStorage.setItem("prefs", JSON.stringify(prefs));
-
-                new Notification("All Set!", {
-                    body: "You will start receiving notifications. Disable this in your settings."
-                });
-                pushPrompt.remove();
-            }
-        });
-    }
+    if (prefs.dontAskPushes || prefs.pushNotifications || !("Notification" in window)) return;
+    const host = document.getElementById("push-prompt-host");
+    if (!host || document.getElementById("push-prompt")) return;
+    const card = document.createElement("section");
+    card.id = "push-prompt";
+    card.innerHTML = `<button type="button" id="push-dismiss" aria-label="Close">×</button><div class="push-copy"><strong>Stay in the loop</strong><span>Get notified when new messages arrive.</span><small id="push-status">Notifications are optional.</small></div><button type="button" id="push-confirmation">Enable</button><button type="button" id="stop-asking">Not now</button>`;
+    host.appendChild(card);
+    card.querySelector("#stop-asking").onclick = card.querySelector("#push-dismiss").onclick = () => {
+        prefs.dontAskPushes = true; localStorage.setItem("prefs", JSON.stringify(prefs)); card.remove();
+    };
+    card.querySelector("#push-confirmation").onclick = async event => {
+        const button = event.currentTarget, status = card.querySelector("#push-status");
+        button.disabled = true; button.textContent = "Enabling…"; status.textContent = "Waiting for browser permission and registering this device…";
+        try {
+            const ok = await setupPushNotifications();
+            if (!ok) throw new Error("Could not register push notifications. Check VAPID configuration and browser permission, then retry.");
+            prefs.pushNotifications = true; prefs.dontAskPushes = false; localStorage.setItem("prefs", JSON.stringify(prefs));
+            const registration = await navigator.serviceWorker.ready;
+            await registration.showNotification("Xessenger test notification", {body:"Push notifications are working on this device.", icon:"/favicon.ico", tag:"xsngr-test"});
+            card.remove();
+        } catch (error) {
+            status.textContent = error.message || "Setup failed. Please try again.";
+            button.disabled = false; button.textContent = "Try again";
+        }
+    };
 }
 
 document.getElementById("room-selector").addEventListener("change", e => {changeRoom(e.target.value);});
 document.getElementById("msg").addEventListener("keydown", e => { if (e.key === "Enter") void send(); });
 document.getElementById("send-msg").addEventListener("click", e => { e.preventDefault(); void send(); });
 document.getElementById("open-prefs").addEventListener("click", () => { open_prefs(); });
+document.getElementById("pfp").addEventListener("click", openProfileEditor);
+document.getElementById("pfp").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") openProfileEditor(); });
 document.getElementById("upload").addEventListener("click", () => {
     const input = document.createElement("input");
     input.type = "file";
@@ -664,6 +671,18 @@ function save_prefs() {
     close_prefs();
 }
 
+async function openProfileEditor() {
+    const existing = document.getElementById("profile-modal"); if (existing) existing.remove();
+    const overlay = document.createElement("div"); overlay.className = "modal-overlay"; overlay.id = "profile-modal";
+    overlay.innerHTML = `<section class="modal-panel profile-editor"><button class="room-close profile-close" type="button" aria-label="Close">×</button><h2>Your profile</h2><div class="profile-avatar-row"><img id="profile-avatar-preview" src="/pfp" alt="Profile picture"><label class="btn btn-cancel" for="profile-avatar-file">Change photo</label><input id="profile-avatar-file" type="file" accept="image/png,image/jpeg,image/webp" hidden></div><label class="form-field"><span>Display name</span><input id="profile-edit-name" maxlength="32" autocomplete="nickname"></label><label class="form-field"><span>About you</span><textarea id="profile-edit-bio" maxlength="240" rows="3" placeholder="A short bio (optional)"></textarea></label><p class="profile-status" id="profile-status"></p><div class="btn-group"><button class="btn btn-cancel" id="profile-cancel" type="button">Cancel</button><button class="btn btn-save" id="profile-save" type="button">Save profile</button></div></section>`;
+    document.body.appendChild(overlay); overlay.querySelector(".profile-close").onclick = overlay.querySelector("#profile-cancel").onclick = () => overlay.remove();
+    const status = overlay.querySelector("#profile-status"), avatar = overlay.querySelector("#profile-avatar-preview"); let avatarData = "";
+    try { const response = await fetch("/api/profile"); if (!response.ok) throw new Error("Could not load profile."); const data = await response.json(); overlay.querySelector("#profile-edit-name").value = data.name || myName; overlay.querySelector("#profile-edit-bio").value = data.bio || ""; avatarData = data.avatar || ""; avatar.src = avatarData || "/pfp"; }
+    catch (e) { status.textContent = e.message; }
+    overlay.querySelector("#profile-avatar-file").onchange = async e => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 2*1024*1024) { status.textContent = "Choose an image under 2 MB."; return; } try { avatarData = await compressImage(file, 256, .78); avatar.src = avatarData; status.textContent = "Photo ready to save."; } catch { status.textContent = "Could not read that image."; } };
+    overlay.querySelector("#profile-save").onclick = async e => { const button=e.currentTarget; button.disabled=true; button.textContent="Saving…"; status.textContent=""; try { const response=await fetch("/api/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:overlay.querySelector("#profile-edit-name").value,bio:overlay.querySelector("#profile-edit-bio").value,avatar:avatarData})}); const data=await response.json().catch(()=>({})); if(!response.ok) throw new Error(data.error||"Could not save profile."); myName=data.name; document.getElementById("pfp").src=data.avatar||"/pfp"; overlay.remove(); } catch(error) { status.textContent=error.message; button.disabled=false; button.textContent="Save profile"; } };
+}
+
 //room management utils
 function createRoom() {
     const overlay = document.createElement("div");
@@ -842,6 +861,12 @@ async function showRoomOverview(id) {
         panel.querySelectorAll(".member-kick").forEach(b=>{b.onclick=()=>kickUser(b,panel);});
         panel.querySelector(".room-close").onclick = close;
 
+        if (room.privacy === "Public" && room.inviteCode) {
+            const invite = document.createElement("div"); invite.className="room-invite";
+            invite.innerHTML=`<span>Invite link</span><button type="button" id="copy-room-invite">Copy link</button>`;
+            panel.querySelector(".room-divider").after(invite);
+            invite.querySelector("button").onclick=async()=>{const url=new URL(location.href);url.searchParams.set("join",room.id);url.searchParams.set("invite",room.inviteCode);try{await navigator.clipboard.writeText(url.href);invite.querySelector("button").textContent="Copied";}catch{prompt("Copy this invite link",url.href);}};
+        }
         const addUser = panel.querySelector("#room-add-user");
 
         if (addUser) {
@@ -955,7 +980,7 @@ function editMessage(container, bg) {
     editingMessage = true;
 	const composer = document.getElementById("msg");
 	composer.inert = true;
-    
+
     const bubble = container.querySelector(".bubble") || container;
     const oldText = bubble.textContent;
 
