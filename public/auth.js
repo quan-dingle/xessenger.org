@@ -40,7 +40,9 @@ async function submitForm(form, endpoint, payload) {
     const data = await response.json().catch(function(){return {};});
     if (!response.ok) throw new Error(data.error || ("Request failed (" + response.status + ")"));
     showStatus("Signed in. Opening your conversations…", "success");
-    location.replace("/");
+    const returnTo = sessionStorage.getItem("xessenger-return") || "/";
+    sessionStorage.removeItem("xessenger-return");
+    location.replace(returnTo);
   } catch (error) {
     showStatus(error.message || "Could not complete request.", "error");
   } finally {
@@ -65,11 +67,13 @@ legacyForm.addEventListener("submit", function(event){
   const data = new FormData(legacyForm);
   submitForm(legacyForm, "/api/auth/claim-legacy", {token:data.get("token"), email:data.get("email"), password:data.get("password")});
 });
-if (new URLSearchParams(location.search).has("legacy")) showView("legacy");
+const incoming = new URLSearchParams(location.search);
+if (incoming.has("join") && incoming.has("invite")) sessionStorage.setItem("xessenger-return", "/?join=" + encodeURIComponent(incoming.get("join")) + "&invite=" + encodeURIComponent(incoming.get("invite")));
+if (incoming.has("legacy")) showView("legacy");
 (async function(){
   try {
     const response = await fetch("/api/auth/session", {cache:"no-store"});
     const session = await response.json();
-    if (session.authenticated) location.replace("/");
+    if (session.authenticated) { const returnTo = sessionStorage.getItem("xessenger-return") || "/"; sessionStorage.removeItem("xessenger-return"); location.replace(returnTo); }
   } catch {}
 })();
