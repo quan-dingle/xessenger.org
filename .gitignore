@@ -1,6 +1,14 @@
 node_modules/
 assets/websites/
 #patterns/
-*.json
+database.json
+rooms.json
+accounts.json
+uploads.json
+history.json
+logs.json
 upload.py
 .idea
+
+# Runtime-only accounts, client sessions and chat uploads
+uploads/

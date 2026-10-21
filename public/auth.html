@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111214">
+  <title>XSngr · Sign in</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/auth.css">
+</head>
+<body>
+  <div class="matrix" aria-hidden="true"></div>
+  <main class="auth-shell">
+    <section class="auth-card">
+      <a class="brand" href="/" aria-label="Xessenger home"><span class="brand-mark">X</span><span>XSNGR<span class="brand-dot">.</span></span></a>
+      <div class="eyebrow">PRIVATE CONVERSATIONS // NO NOISE</div>
+      <h1 id="heading">Welcome back.</h1>
+      <p class="subheading" id="subheading">Sign in to pick up where your conversations left off.</p>
+      <div class="tabs" role="tablist">
+        <button class="tab active" id="login-tab" type="button" role="tab">Sign in</button>
+        <button class="tab" id="signup-tab" type="button" role="tab">Create account</button>
+      </div>
+      <form id="login-form" class="auth-form">
+        <label>Username or email<input name="identifier" autocomplete="username" required maxlength="254" placeholder="you@example.com"></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="256" placeholder="Your password"></label>
+        <button class="primary" type="submit">Sign in <span>↗</span></button>
+      </form>
+      <form id="signup-form" class="auth-form hidden">
+        <label>Username<input name="username" autocomplete="username" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_.-]{3,24}" placeholder="choose_a_name"></label>
+        <label>Email<input name="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@example.com"></label>
+        <label>Password<input name="password" type="password" autocomplete="new-password" required minlength="10" maxlength="256" placeholder="At least 10 characters"></label>
+        <button class="primary" type="submit">Create account <span>↗</span></button>
+      </form>
+      <form id="legacy-form" class="auth-form hidden">
+        <div class="legacy-note">Have an older Xessenger access token? Link it once to preserve existing rooms.</div>
+        <label>Existing access token<input name="token" type="password" autocomplete="off" required placeholder="Legacy token"></label>
+        <label>Email<input name="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@example.com"></label>
+        <label>New password<input name="password" type="password" autocomplete="new-password" required minlength="10" maxlength="256" placeholder="At least 10 characters"></label>
+        <button class="primary" type="submit">Link account <span>↗</span></button>
+      </form>
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+      <button type="button" class="quiet-link" id="legacy-toggle">Link an existing token</button>
+      <div class="auth-foot"><span>SECURE SESSION</span><span>XSNGR / 01</span></div>
+    </section>
+    <aside class="manifesto"><span class="manifesto-line"></span><p>LESS FEED.<br>MORE <em>conversation.</em></p><span class="manifesto-small">A quieter corner of the internet.</span></aside>
+  </main>
+  <script src="/auth.js"></script>
+</body>
+</html>

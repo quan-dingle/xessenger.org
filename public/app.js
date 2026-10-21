@@ -112,24 +112,47 @@ document.getElementById("open-prefs").addEventListener("click", () => { open_pre
 document.getElementById("upload").addEventListener("click", () => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "image/*";
     input.multiple = false;
-    input.onchange = (e) => {
-        if (e.target.files.length > 0) selectedFile = e.target.files[0];
-        if (selectedFile) {
-            const preview = document.createElement("div");
-            preview.innerHTML = `<img src="${URL.createObjectURL(selectedFile)}" alt="${selectedFile.name}"/>`;
-            preview.alt = selectedFile.name;
-            preview.id = "preview";
-            preview.className = "preview";
-            preview.style.left = "5%"
-            document.body.append(preview);
-            const x = document.createElement("div");
-            x.innerHTML = "<p>x</p>";
-            x.className = "remove-upload";
-            preview.appendChild(x);
-            preview.addEventListener("click",() => {preview.remove();selectedFile=null});
+    input.onchange = event => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        if (file.size > 50 * 1024 * 1024) {
+            alert("Files are limited to 50 MiB.");
+            return;
         }
+        selectedFile = file;
+        const old = document.getElementById("preview");
+        if (old) old.remove();
+        const preview = document.createElement("div");
+        preview.id = "preview";
+        preview.className = "preview";
+        if (file.type && file.type.startsWith("image/")) {
+            const img = document.createElement("img");
+            img.src = URL.createObjectURL(file);
+            img.alt = file.name;
+            preview.appendChild(img);
+        } else {
+            const info = document.createElement("div");
+            info.className = "file-preview";
+            const name = document.createElement("strong");
+            name.textContent = file.name;
+            const size = document.createElement("span");
+            size.textContent = formatFileSize(file.size);
+            info.append(name, size);
+            preview.appendChild(info);
+        }
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "remove-upload";
+        remove.textContent = "×";
+        remove.setAttribute("aria-label", "Remove attachment");
+        remove.addEventListener("click", event => {
+            event.stopPropagation();
+            preview.remove();
+            selectedFile = null;
+        });
+        preview.appendChild(remove);
+        document.body.append(preview);
     };
     input.click();
 });
@@ -186,88 +209,170 @@ function compressImage(file, maxWidth = 1280, quality = 0.7) {
 async function send() {
     const input = document.getElementById("msg");
     const msg = input.value.trim();
-    if (!msg && !selectedFile) return;
+    const file = selectedFile;
+    if (!msg && !file) return;
     input.value = "";
-
-    // helper function to handle the fetch request once we have text or base64 data
-    const executeSend = async (attachmentData = null) => {
-        const temp = addTempMessage("", msg, "pending", selectedFile);
-
-        await fetch("/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: msg, attachment: attachmentData })
-        });
-
-        temp.remove();
-        selectedFile = null;
-        const p = document.getElementById("preview"); if(p) p.remove();
-    };
-
-    if (selectedFile) {
-        try {
-            const base64Data = await compressImage(selectedFile);
-            await executeSend(base64Data);
-        } catch (e) {
-            console.error("Image compression failed", e);
+    const temp = addTempMessage(myName, msg, "pending", file);
+    try {
+        let attachment = null;
+        if (file) {
+            const form = new FormData();
+            form.append("file", file, file.name);
+            const uploadResponse = await fetch("/api/upload", {method: "POST", body: form});
+            const uploadData = await uploadResponse.json().catch(() => ({}));
+            if (!uploadResponse.ok) throw new Error(uploadData.error || "Upload failed.");
+            attachment = uploadData;
         }
-    } else {
-        await executeSend(null);
+        const response = await fetch("/send", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({message: msg, attachment})
+        });
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.error || "Message could not be sent.");
+        }
+        selectedFile = null;
+        const preview = document.getElementById("preview");
+        if (preview) preview.remove();
+    } catch (error) {
+        input.value = msg;
+        alert(error.message || "Could not send message.");
+    } finally {
+        temp.remove();
     }
 }
 
 // pipeline for rendering new messages
 // get link and generate preview if applicable
-function createPreviewElement(content, previewLink = "") {
-    const link = content?.match(/https?:\/\/[^\s]+/)?.[0];
-    if (!link) return null;
-
-    print("recv hyperlink", link);
-
-    // main preview container
-    const preview = document.createElement("div");
-    preview.classList.add("link-preview");
-    // body/iframe
-    const previewBody = document.createElement("div");
-    previewBody.className = "link-preview-body";
-    // placeholder
-    previewBody.innerHTML = `<div class="link-preview-placeholder">${previewLink ? `<img src="${escapeHtml(previewLink)}" alt="">` : ''}</div>`;
-    previewBody.onclick = () => {
-        previewBody.innerHTML = `<iframe src="${escapeHtml(link)}" title="Embedded Content"></iframe>`;
-        previewBody.onclick = null;
-    };
-
-    // footer controls
-    const previewControls = document.createElement("div");
-        previewControls.classList.add("link-preview-footer");
-    const openInNewTab = document.createElement("button");
-        openInNewTab.innerText = "⧉";
-        openInNewTab.onclick = (e) => {e.stopPropagation();window.open(link, "_blank");};
-    const fullScreenPreview = document.createElement("button");
-        fullScreenPreview.innerText = "⛶";
-        fullScreenPreview.onclick = (e) => {e.stopPropagation();
-        previewBody.requestFullscreen();
-        document.body.onclick=document.exitFullscreen();
-        // TODO: re-center the fucking iframe
-        };
-    const hidePreview = document.createElement("button");
-        hidePreview.innerText = "▴";
-        hidePreview.onclick = (e) => {e.stopPropagation();
-            previewBody.hidden = !previewBody.hidden;
-            hidePreview.innerText = previewBody.hidden ? "▾" : "▴";}
-    [openInNewTab, fullScreenPreview, hidePreview].forEach(btn => {
-        previewControls.appendChild(btn);});
-
-    preview.appendChild(previewBody);
-    preview.appendChild(previewControls);
-
-    if (link.includes("openguessr.com/?join=")) {
-        preview.classList.add("openguessr-preview");
-        return preview;
+function createPreviewElement(content) {
+    const match = content && content.match(/https?:\/\/[^\s<>"']+/);
+    if (!match) return null;
+    const link = match[0].replace(/[),.;!?]+$/, "");
+    let url;
+    try { url = new URL(link); } catch { return null; }
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    let embedUrl = "";
+    let label = url.hostname;
+    if (host === "youtu.be") {
+        const id = url.pathname.split("/").filter(Boolean)[0];
+        if (id) { embedUrl = "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(id); label = "YouTube"; }
+    } else if (host === "youtube.com" || host === "m.youtube.com") {
+        const id = url.searchParams.get("v") || (url.pathname.match(/^\/(?:embed|shorts)\/([^/]+)/) || [])[1];
+        if (id) { embedUrl = "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(id); label = "YouTube"; }
+    } else if (host === "tiktok.com" || host.endsWith(".tiktok.com")) {
+        const id = (url.pathname.match(/\/video\/(\d+)/) || [])[1];
+        if (id) { embedUrl = "https://www.tiktok.com/embed/v2/" + encodeURIComponent(id); label = "TikTok"; }
+    } else if (host === "instagram.com" || host.endsWith(".instagram.com")) {
+        const matchPath = url.pathname.match(/^\/(reel|reels|p|tv)\/([A-Za-z0-9_-]+)/);
+        if (matchPath) {
+            const type = matchPath[1] === "reels" ? "reel" : matchPath[1];
+            embedUrl = "https://www.instagram.com/" + type + "/" + encodeURIComponent(matchPath[2]) + "/embed";
+            label = "Instagram";
+        }
+    } else if (host === "x.com" || host === "twitter.com") {
+        label = "X / Twitter";
     }
 
-    print("recv unk link - passive / no embed");
+    const preview = document.createElement("div");
+    preview.className = "link-preview";
+    const body = document.createElement("div");
+    body.className = "link-preview-body";
+    const card = document.createElement("a");
+    card.className = "external-link-card";
+    card.href = url.href;
+    card.target = "_blank";
+    card.rel = "noopener noreferrer";
+    const icon = document.createElement("span");
+    icon.className = "external-link-icon";
+    icon.textContent = "↗";
+    const info = document.createElement("span");
+    const title = document.createElement("strong");
+    title.textContent = label;
+    const detail = document.createElement("small");
+    detail.textContent = url.hostname + url.pathname;
+    info.append(title, detail);
+    card.append(icon, info);
+    body.appendChild(card);
+
+    if (embedUrl) {
+        const reveal = document.createElement("button");
+        reveal.className = "embed-reveal";
+        reveal.type = "button";
+        reveal.textContent = "Load " + label + " embed";
+        reveal.addEventListener("click", () => {
+            const iframe = document.createElement("iframe");
+            iframe.src = embedUrl;
+            iframe.title = label + " preview";
+            iframe.loading = "lazy";
+            iframe.referrerPolicy = "strict-origin-when-cross-origin";
+            iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+            iframe.allowFullscreen = true;
+            body.replaceChildren(iframe);
+        }, {once: true});
+        body.appendChild(reveal);
+    }
+    const controls = document.createElement("div");
+    controls.className = "link-preview-footer";
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.textContent = "▴";
+    toggle.title = "Collapse preview";
+    toggle.addEventListener("click", () => {
+        body.hidden = !body.hidden;
+        toggle.textContent = body.hidden ? "▾" : "▴";
+    });
+    const open = document.createElement("a");
+    open.href = url.href;
+    open.target = "_blank";
+    open.rel = "noopener noreferrer";
+    open.textContent = "Open ↗";
+    controls.append(toggle, open);
+    preview.append(body, controls);
     return preview;
+}
+
+function renderAttachmentHtml(attachment) {
+    if (typeof attachment === "string") {
+        if (attachment.startsWith("data:image/")) {
+            return '<div class="attachment-bubble"><img src="' + escapeHtml(attachment) + '" alt="[image attachment]"></div>';
+        }
+        return "";
+    }
+    if (attachment instanceof Blob || attachment instanceof File) {
+        const url = URL.createObjectURL(attachment);
+        const name = attachment.name || "Attachment";
+        if (attachment.type && attachment.type.startsWith("image/")) {
+            return '<div class="attachment-bubble"><img src="' + escapeHtml(url) + '" alt="' + escapeHtml(name) + '"></div>';
+        }
+        return '<div class="attachment-bubble file-card"><span class="file-type">' + escapeHtml(name.split(".").pop().slice(0,8).toUpperCase()) + '</span><span class="file-info"><strong>' + escapeHtml(name) + '</strong><small>' + formatFileSize(attachment.size || 0) + '</small></span></div>';
+    }
+    const name = attachment.name || "Attachment";
+    const type = attachment.type || "application/octet-stream";
+    const url = attachment.url || "";
+    const downloadUrl = attachment.downloadUrl || url;
+    const size = formatFileSize(attachment.size || 0);
+    const safeName = escapeHtml(name);
+    const safeUrl = escapeHtml(url);
+    const safeDownload = escapeHtml(downloadUrl);
+    if (type.startsWith("image/") && url) {
+        return '<div class="attachment-bubble file-image"><a href="' + safeDownload + '" download="' + safeName + '"><img src="' + safeUrl + '" alt="' + safeName + '" loading="lazy"></a><a class="file-download" href="' + safeDownload + '" download="' + safeName + '">Download ' + safeName + ' · ' + size + '</a></div>';
+    }
+    if (type.startsWith("audio/") || type.startsWith("video/")) {
+        const player = type.startsWith("audio/") ? "audio" : "video";
+        return '<div class="attachment-bubble file-card"><span class="file-type">' + escapeHtml(name.split(".").pop().slice(0,8).toUpperCase()) + '</span><span class="file-info"><strong>' + safeName + '</strong><small>' + size + '</small></span><a class="file-download" href="' + safeDownload + '" download="' + safeName + '">Download</a><' + player + ' controls preload="none" src="' + safeUrl + '"></' + player + '></div>';
+    }
+    return '<div class="attachment-bubble file-card"><span class="file-type">' + escapeHtml(name.split(".").pop().slice(0,8).toUpperCase()) + '</span><span class="file-info"><strong>' + safeName + '</strong><small>' + escapeHtml(type) + ' · ' + size + '</small></span><a class="file-download" href="' + safeDownload + '" download="' + safeName + '">Download ↧</a></div>';
+}
+
+function formatFileSize(size) {
+    size = Number(size);
+    if (!Number.isFinite(size) || size < 0) return "file";
+    if (size < 1024) return size + " B";
+    if (size < 1024 * 1024) return (size / 1024).toFixed(1) + " KB";
+    if (size < 1024 * 1024 * 1024) return (size / (1024 * 1024)).toFixed(1) + " MB";
+    return (size / (1024 * 1024 * 1024)).toFixed(2) + " GB";
 }
 
 // message edits and deletions
@@ -345,14 +450,7 @@ function addMessage(data) {
     const isSameSender = applySenderStyling(chat, container, sender);
     const bubbleHtml = content ? `<div class="bubble">${escapeHtml(content)}</div>` : '';
 
-    let attachmentHtml = "";
-    if (attachment) {
-        let imgSrc = attachment;
-        if (attachment instanceof Blob || attachment instanceof File) {
-            imgSrc = URL.createObjectURL(attachment);
-        }
-        attachmentHtml = `<div class="attachment-bubble"><img src="${escapeHtml(imgSrc)}" alt="[file]"></div>`;
-    }
+    const attachmentHtml = attachment ? renderAttachmentHtml(attachment) : "";
 
     container.innerHTML = `
         ${!isSameSender ? `
@@ -399,14 +497,7 @@ function addTempMessage(sender, msg, time = "pending", attachment = null) {
 
     let bubbleHtml = msg ? `<div class="bubble">${escapeHtml(msg)}</div>` : '';
 
-    let attachmentHtml = "";
-    if (attachment) {
-        let imgSrc = attachment;
-        if (attachment instanceof Blob || attachment instanceof File) {
-            imgSrc = URL.createObjectURL(attachment);
-        }
-        attachmentHtml = `<div class="attachment-bubble"><img src="${escapeHtml(imgSrc)}" alt="[file]"></div>`;
-    }
+    const attachmentHtml = attachment ? renderAttachmentHtml(attachment) : "";
 
     container.innerHTML = `
         ${!isSameSender ? `
@@ -425,7 +516,11 @@ function addTempMessage(sender, msg, time = "pending", attachment = null) {
 
 // tine helpers
 function getTime(t) {return new Date(t).toISOString().split("T")[1].split(".")[0];}
-function escapeHtml(text) { const div = document.createElement("div"); div.innerText = text; return div.innerHTML; }
+function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.innerText = String(text ?? "");
+    return div.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
 const hexToRgb = hex => `${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`;
 function getCookie(name) {return ('; ' + document.cookie).split("; " + name + "=").pop().split(';')[0];}
 function urlBase64ToUint8Array(base64String) {
@@ -1024,3 +1119,20 @@ function contextMenu(container) {
     setTimeout(() => document.addEventListener("click", outsideClick), 0);
 }
 
+
+// Deliberately dormant: callers can swap to the alternate stylesheet at runtime.
+function applyDesign(name = "default") {
+    const designs = {default: "/style.css", alternate: "/designs/style2.css"};
+    const href = designs[name];
+    const link = document.getElementById("app-style");
+    if (!href || !link) return false;
+    link.href = href;
+    return true;
+}
+window.applyDesign = applyDesign;
+
+const logoutButton = document.getElementById("logout");
+if (logoutButton) logoutButton.addEventListener("click", async () => {
+    await fetch("/api/auth/logout", {method: "POST"});
+    location.replace("/login");
+});

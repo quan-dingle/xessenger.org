@@ -1,5 +1,4 @@
 let openConnections = {};
-let screenshots = {};
 let history = {0:[{
     "id": 1,
     "sender": "SERVER",
@@ -16,19 +15,24 @@ TODO:|\/\|\/\|\/\|\/\|\/\|\/\|\/
 - better room selector
 */
 
-const isServer = os.hostname() === "vmd197130";
-console.log("launched as",os.hostname()+", currently in",isServer?"prod":"dev")
-import os from "os";
 import http from "http";
-import {chromium} from "playwright";
 import path from "path";
 import crypto from "crypto";
+import { promisify } from "util";
 import fs from "fs";
 import webpush from "web-push";
 
-let DB = JSON.parse(fs.readFileSync("database.json"));
-let roomsDB = JSON.parse(fs.readFileSync("rooms.json"));
-const PORT = 5000;
+let DB = loadJson("database.json", {validTokens: [], users: {}, admins: []});
+let roomsDB = loadJson("rooms.json", {});
+const PORT = Number(process.env.PORT || 5000);
+const scrypt = promisify(crypto.scrypt);
+const AUTH_HTML = fs.readFileSync("public/auth.html", "utf8");
+const AUTH_CSS = fs.readFileSync("public/auth.css", "utf8");
+const AUTH_JS = fs.readFileSync("public/auth.js", "utf8");
+const uploadsRoot = path.resolve("uploads");
+fs.mkdirSync(uploadsRoot, {recursive: true, mode: 0o700});
+let accountsDB = loadJson("accounts.json", {accounts: {}, sessions: {}});
+let uploadsDB = loadJson("uploads.json", {});
 const logFile = "logs.json";
 //const CSS = fs.readFileSync("public/style.css").toString();
 //const JS = fs.readFileSync("public/app.js").toString();
@@ -38,9 +42,9 @@ const ICON = fs.readFileSync("public/favicon.ico");
 const TOKEN_PROMPT = fs.readFileSync("public/tokenPrompt.html").toString();
 const SIGNUP_PROMPT = fs.readFileSync("public/signUpPrompt.html").toString();
 
-const VAPID_PUBLIC_KEY = "BJtwdRA1F6eurSRB4zZxM9d5iFieUegC9LkpbtIyZkcz0r1ODzl6WB1c3RxdYQ7yLU52Z4mi0UCFij0fTyj4J-Y";
-const VAPID_PRIVATE_KEY = "KiWOnseM2PISigCgrjT5F_CnhdfS19a1D18LRFjVBM8";
-const VAPID_SUBJECT = "mailto:admin@example.com";
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:admin@xessenger.org";
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
     webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
@@ -51,7 +55,7 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 console.log("running on port " + PORT);
 
 // MAIN SERVER
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
     if (req.url === "/manifest.json") {
         res.writeHead(200, {"Content-Type": "application/json"});
         res.end(fs.readFileSync("public/manifest.json")); return;
@@ -67,50 +71,149 @@ const server = http.createServer((req, res) => {
 
 
     refreshDBs();
-    const token = getCookie(req, "token");
-    const user = DB.users[token] ?? {};
-
-    if (req.url.startsWith("/token/")) {
-    	const token = decodeURIComponent(req.url.slice(7));
-    	res.writeHead(302, {"Set-Cookie": `token=${encodeURIComponent(token)}; Path=/; SameSite=Lax; Max-Age=2147483647`,"Location": "/"});
-        res.end();
+    const pathname = new URL(req.url, "http://localhost").pathname;
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    if (pathname === "/favicon.ico") {
+        res.writeHead(200, {"Content-Type": "image/x-icon", "Cache-Control": "public, max-age=86400"});
+        res.end(ICON);
         return;
     }
-
-    // UNAUTHORIZED USER - token prompt
-    if (!token || !isValid(token)) {
-        res.writeHead(404, {"Content-Type": "text/html"});
-        res.end(TOKEN_PROMPT); return;
+    let clientToken = getCookie(req, "token");
+    let sessionRecord = clientToken ? accountsDB.sessions[clientToken] : null;
+    let legacyCookieMigration = false;
+    if (sessionRecord?.expiresAt && sessionRecord.expiresAt <= Date.now()) {
+        delete accountsDB.sessions[clientToken];
+        saveAccounts();
+        sessionRecord = null;
     }
-
-    // let user sign up (see next)
-    if (req.url.startsWith("/register")) {
-        let usr;
-        try {usr = decodeURIComponent(req.url.split("/").at(-1));} catch (e) {console.log(url);return;}
-
-        const nameExists = Object.entries(DB.users).some(([t, u]) => {
-            const existingName = typeof u === 'string' ? u : u?.name;
-            return existingName === usr && t !== token;
-        });
-        if (nameExists) {
-            res.writeHead(400, {"Content-Type": "application/json"});
-            res.end(JSON.stringify({error: "Username already taken"}));return;
+    if (!sessionRecord && clientToken && isValid(clientToken) && DB.users[clientToken]) {
+        const legacyAccount = Object.values(accountsDB.accounts).find(a => a.legacyToken === clientToken);
+        if (legacyAccount) {
+            clientToken = createSession(legacyAccount.id, req);
+            sessionRecord = accountsDB.sessions[clientToken];
+            saveAccounts();
+            legacyCookieMigration = true;
         }
-
-        DB.users[token] = {name:usr, rooms: [0], created: {ip: req.remoteAddress, timestamp: Date.now()}};
-        dumpDBs();
-        console.log(token, "signed up via", req.url);
-        res.writeHead(200, {"Content-Type": "application/json"});
-        res.end("all well"); return;
     }
+    const account = sessionRecord ? accountsDB.accounts[sessionRecord.accountId] : null;
+    const token = account?.legacyToken ?? null;
+    const user = token ? (DB.users[token] ?? {}) : {};
+    const setSessionCookie = (value, maxAge = 60 * 60 * 24 * 30) => {
+        const secure = req.socket.encrypted || req.headers["x-forwarded-proto"] === "https";
+        res.setHeader("Set-Cookie", "token=" + encodeURIComponent(value) + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + maxAge + (secure ? "; Secure" : ""));
+    };
+    if (legacyCookieMigration) setSessionCookie(clientToken);
 
-    // UNKNOWN USER - send signup prompt
-    if (!DB.users[token]) {
-        console.log(DB["users"][token]);
-        res.writeHead(200, {"Content-Type": "text/html"});
-        res.end(SIGNUP_PROMPT); return;
+    if (pathname === "/auth.css") {
+        res.writeHead(200, {"Content-Type": "text/css; charset=utf-8", "Cache-Control": "no-cache"});
+        res.end(AUTH_CSS); return;
     }
-
+    if (pathname === "/auth.js") {
+        res.writeHead(200, {"Content-Type": "application/javascript; charset=utf-8", "Cache-Control": "no-cache"});
+        res.end(AUTH_JS); return;
+    }
+    if (pathname === "/api/auth/session" && req.method === "GET") {
+        res.writeHead(200, {"Content-Type": "application/json", "Cache-Control": "no-store"});
+        res.end(JSON.stringify({authenticated: !!account, username: account?.username ?? null, needsSetup: !!account?.needsSetup}));
+        return;
+    }
+    if (pathname === "/api/auth/signup" && req.method === "POST") {
+        try {
+            const body = await readJson(req, 16384);
+            const username = String(body.username || "").trim();
+            const email = String(body.email || "").trim().toLowerCase();
+            const password = String(body.password || "");
+            if (!/^[a-zA-Z0-9_.-]{3,24}$/.test(username)) throw httpError(400, "Username must be 3–24 characters using letters, numbers, dots, underscores or hyphens.");
+            if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw httpError(400, "Enter a valid email address.");
+            if (password.length < 10 || password.length > 256) throw httpError(400, "Password must be at least 10 characters.");
+            const nameKey = username.toLowerCase();
+            if (Object.values(accountsDB.accounts).some(a => a.username.toLowerCase() === nameKey)) throw httpError(409, "That username is already taken.");
+            if (Object.values(accountsDB.accounts).some(a => a.email && a.email.toLowerCase() === email)) throw httpError(409, "An account with that email already exists.");
+            const accountId = crypto.randomUUID();
+            const legacyToken = crypto.randomBytes(24).toString("hex");
+            DB.users[legacyToken] = {name: username, rooms: [0], created: {timestamp: Date.now()}, pushSubscriptions: []};
+            DB.validTokens ||= [];
+            DB.validTokens.push(legacyToken);
+            accountsDB.accounts[accountId] = {id: accountId, username, email, passwordHash: await hashPassword(password), legacyToken, createdAt: Date.now(), needsSetup: false};
+            const sessionToken = createSession(accountId, req);
+            dumpDBs();
+            saveAccounts();
+            setSessionCookie(sessionToken);
+            res.writeHead(201, {"Content-Type": "application/json", "Cache-Control": "no-store"});
+            res.end(JSON.stringify({ok: true, username}));
+        } catch (e) { sendApiError(res, e); }
+        return;
+    }
+    if (pathname === "/api/auth/login" && req.method === "POST") {
+        try {
+            const body = await readJson(req, 16384);
+            const identifier = String(body.identifier || "").trim().toLowerCase();
+            const password = String(body.password || "");
+            const found = Object.values(accountsDB.accounts).find(a => a.username.toLowerCase() === identifier || (a.email && a.email.toLowerCase() === identifier));
+            if (!found) throw httpError(401, "Invalid username/email or password.");
+            if (found.needsSetup || !found.passwordHash) throw httpError(409, "This is an older Xessenger account. Use “Link existing token” once to set a password.");
+            if (!await verifyPassword(password, found.passwordHash)) throw httpError(401, "Invalid username/email or password.");
+            const sessionToken = createSession(found.id, req);
+            saveAccounts();
+            setSessionCookie(sessionToken);
+            res.writeHead(200, {"Content-Type": "application/json", "Cache-Control": "no-store"});
+            res.end(JSON.stringify({ok: true, username: found.username}));
+        } catch (e) { sendApiError(res, e); }
+        return;
+    }
+    if (pathname === "/api/auth/claim-legacy" && req.method === "POST") {
+        try {
+            const body = await readJson(req, 16384);
+            const legacyToken = String(body.token || "").trim();
+            const email = String(body.email || "").trim().toLowerCase();
+            const password = String(body.password || "");
+            const found = Object.values(accountsDB.accounts).find(a => a.legacyToken === legacyToken && a.needsSetup);
+            if (!found || !isValid(legacyToken)) throw httpError(401, "That legacy token is not valid for account setup.");
+            if (password.length < 10 || password.length > 256) throw httpError(400, "Password must be at least 10 characters.");
+            if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw httpError(400, "Enter a valid email address.");
+            if (Object.values(accountsDB.accounts).some(a => a.id !== found.id && a.email && a.email.toLowerCase() === email)) throw httpError(409, "An account with that email already exists.");
+            found.email = email;
+            found.passwordHash = await hashPassword(password);
+            found.needsSetup = false;
+            const sessionToken = createSession(found.id, req);
+            saveAccounts();
+            setSessionCookie(sessionToken);
+            res.writeHead(200, {"Content-Type": "application/json", "Cache-Control": "no-store"});
+            res.end(JSON.stringify({ok: true, username: found.username}));
+        } catch (e) { sendApiError(res, e); }
+        return;
+    }
+    if (pathname === "/api/auth/logout" && req.method === "POST") {
+        if (clientToken && accountsDB.sessions[clientToken]) {
+            delete accountsDB.sessions[clientToken];
+            saveAccounts();
+        }
+        setSessionCookie("", 0);
+        res.writeHead(200, {"Content-Type": "application/json", "Cache-Control": "no-store"});
+        res.end('{"ok":true}'); return;
+    }
+    if (pathname === "/token" || pathname.startsWith("/token/")) {
+        res.writeHead(302, {Location: "/login?legacy=1", "Cache-Control": "no-store"});
+        res.end(); return;
+    }
+    if (pathname === "/register" || pathname.startsWith("/register/")) {
+        res.writeHead(410, {"Content-Type": "application/json"});
+        res.end(JSON.stringify({error: "Use account signup instead."})); return;
+    }
+    if (!account || !token || !isValid(token)) {
+        if (pathname.startsWith("/api/") || pathname === "/send" || pathname === "/stream") {
+            res.writeHead(401, {"Content-Type": "application/json", "Cache-Control": "no-store"});
+            res.end(JSON.stringify({error: "Authentication required"})); return;
+        }
+        res.writeHead(200, {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store"});
+        res.end(AUTH_HTML); return;
+    }
+    if (pathname === "/login" || pathname === "/signup") {
+        res.writeHead(302, {Location: "/", "Cache-Control": "no-store"});
+        res.end(); return;
+    }
     // ---------------------------- AUTHORIZED ------------------------------
     // statics (mostly)
     if (req.url === "/" || req.url === "/index.html") {
@@ -118,9 +221,10 @@ const server = http.createServer((req, res) => {
         res.end(fs.readFileSync("public/index.html").toString());
         return;
     }
-    if (req.url === "/style.css") {
-        res.writeHead(200, {"Content-Type": "text/css"});
-        res.end(fs.readFileSync("public/style.css").toString());
+    if (pathname === "/style.css" || pathname === "/designs/style2.css") {
+        const cssFile = pathname === "/style.css" ? "public/style.css" : "public/designs/style2.css";
+        res.writeHead(200, {"Content-Type": "text/css; charset=utf-8"});
+        res.end(fs.readFileSync(cssFile).toString());
         return;
     }
     if (req.url === "/app.js") {
@@ -147,20 +251,17 @@ const server = http.createServer((req, res) => {
     }
 
 
-    if (req.url === "/api/create-room") {
-        let data = "";
-        req.on("data", (chunk) => data += chunk);
-        req.on("end", () => {
-            let body = JSON.parse(data);
-            const alias = body.alias;
-            const desc = body.desc;
-            const privacy = body.privacy;
-
-            const do_it = new Promise(() =>
-            createRoom(token, alias, desc, privacy))
-                .then(r => res.writeHead(r?200:400))
-                .then(res.end());
-        })
+    if (pathname === "/api/create-room" && req.method === "POST") {
+        try {
+            const body = await readJson(req, 32768);
+            const alias = String(body.alias || "").trim().slice(0, 64);
+            const desc = String(body.desc || "").trim().slice(0, 500);
+            const privacy = ["Public", "Private", "Confidential", "Top-Secret"].includes(body.privacy) ? body.privacy : "Public";
+            if (!alias) throw httpError(400, "Room name is required.");
+            const id = createRoom(token, alias, desc, privacy);
+            res.writeHead(201, {"Content-Type": "application/json"});
+            res.end(JSON.stringify({ok: true, id}));
+        } catch (e) { sendApiError(res, e); }
         return;
     }
 
@@ -199,6 +300,56 @@ const server = http.createServer((req, res) => {
 
         res.writeHead(200, {"Content-Type": "application/json"});
         res.end(JSON.stringify({publicKey: VAPID_PUBLIC_KEY}));
+        return;
+    }
+
+    if (pathname === "/api/upload" && req.method === "POST") {
+        try {
+            const match = String(req.headers["content-type"] || "").match(/multipart\/form-data\s*;\s*boundary=(?:"([^"]+)"|([^;]+))/i);
+            if (!match) throw httpError(415, "Use a multipart file upload.");
+            const boundary = match[1] || match[2].trim();
+            const body = await readBuffer(req, 50 * 1024 * 1024 + 65536);
+            const filePart = findMultipartFile(body, boundary, "file");
+            if (!filePart) throw httpError(400, "No file was supplied.");
+            if (!filePart.data.length) throw httpError(400, "The selected file is empty.");
+            if (filePart.data.length > 50 * 1024 * 1024) throw httpError(413, "Files are limited to 50 MiB.");
+            const id = crypto.randomBytes(24).toString("hex");
+            let type = (filePart.type || "application/octet-stream").split(";")[0].toLowerCase();
+            if (["image/svg+xml", "application/xhtml+xml", "text/html", "text/javascript", "application/javascript"].includes(type)) {
+                type = "application/octet-stream";
+            }
+            const filename = cleanFilename(filePart.filename || "download");
+            fs.writeFileSync(path.join(uploadsRoot, id), filePart.data, {flag: "wx", mode: 0o600});
+            uploadsDB[id] = {id, filename, type, size: filePart.data.length, storageName: id, uploadedBy: account.id, createdAt: Date.now()};
+            saveUploads();
+            res.writeHead(201, {"Content-Type": "application/json", "Cache-Control": "no-store"});
+            res.end(JSON.stringify(publicAttachment(uploadsDB[id])));
+        } catch (e) { sendApiError(res, e); }
+        return;
+    }
+    const fileRoute = pathname.match(/^\/(media|download)\/([a-f0-9]{48})$/);
+    if (fileRoute && req.method === "GET") {
+        const record = uploadsDB[fileRoute[2]];
+        if (!record) { res.writeHead(404); res.end("File not found"); return; }
+        const sharedRooms = Array.isArray(record.sharedRooms) ? record.sharedRooms : [];
+        const userRooms = DB.users[token]?.rooms || [];
+        const hasFileAccess = record.uploadedBy === account.id || sharedRooms.some(sharedRoom =>
+            userRooms.some(userRoom => String(userRoom) === String(sharedRoom)));
+        if (!hasFileAccess) { res.writeHead(403); res.end("You do not have access to this file."); return; }
+        const target = path.join(uploadsRoot, record.storageName);
+        if (!fs.existsSync(target)) { res.writeHead(404); res.end("File not found"); return; }
+        const inline = fileRoute[1] === "media" && /^(?:image\/(?:png|jpeg|gif|webp|avif|bmp|tiff)|audio\/(?:mpeg|ogg|wav|webm|mp4|aac|flac)|video\/(?:mp4|webm|ogg|quicktime))$/i.test(record.type);
+        if (fileRoute[1] === "media" && !inline) { res.writeHead(415); res.end("This file type is download-only."); return; }
+        const disposition = inline ? "inline" : "attachment";
+        const asciiName = record.filename.replace(/[^\x20-\x7E]/g, "_").replace(/["\\]/g, "_");
+        res.writeHead(200, {
+            "Content-Type": record.type,
+            "Content-Length": record.size,
+            "Content-Disposition": disposition + '; filename="' + asciiName + '"; filename*=UTF-8\'\'' + encodeURIComponent(record.filename),
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "private, max-age=3600"
+        });
+        fs.createReadStream(target).pipe(res);
         return;
     }
 
@@ -305,22 +456,22 @@ const server = http.createServer((req, res) => {
                     sender: DB["users"][token]["name"] || "unknown",
                     content: parsed.message || "",
                     timestamp: new Date().toISOString(),
-                    attachment: parsed.attachment,
+                    attachment: parsed.attachment?.id && uploadsDB[parsed.attachment.id]
+                        ? publicAttachment(uploadsDB[parsed.attachment.id])
+                        : null,
                 };
-
-                const hyperlink = msg.content.match(/https?:\/\/[^\s]+/)?.[0]??"";
-                if (hyperlink) {
-                    if (screenshots[hyperlink]) {
-                        msg.previewLink = screenshots[hyperlink];
-                        console.log("successfully provided the link", msg.previewLink,"to user",user.name)
+                if (parsed.attachment && !msg.attachment) {
+                    res.writeHead(400, {"Content-Type": "application/json"});
+                    res.end(JSON.stringify({error: "Invalid attachment."}));
+                    return;
+                }
+                if (msg.attachment) {
+                    const uploadRecord = uploadsDB[parsed.attachment.id];
+                    uploadRecord.sharedRooms ||= [];
+                    if (!uploadRecord.sharedRooms.some(sharedRoom => String(sharedRoom) === String(room))) {
+                        uploadRecord.sharedRooms.push(String(room));
+                        saveUploads();
                     }
-                    else{
-                        screenshotWebsite(hyperlink).then((lnk)=>{
-                        screenshots[hyperlink]=lnk;
-                        msg.previewLink = lnk;
-                        console.log(user.name,"requested to load",hyperlink+". saved file to:",lnk);
-                    });}
-
                 }
 
                 msg.id = parsed.id??deriveID(msg.sender, msg.timestamp, msg.content);
@@ -342,13 +493,15 @@ const server = http.createServer((req, res) => {
     }
 
     // embed previews delivering
-    if(req.url.startsWith("/assets/websites/")) {
-        res.writeHead(200, {"Content-Type": "image/jpeg"});
-        let f = null;
-        try {res.end(fs.readFileSync(req.url.toString().replace("/","",1)));}
-        catch {
-            console.log("invalid asset req from", user.name)
-            res.end("");}
+    const websiteAsset = pathname.match(/^\/assets\/websites\/([a-zA-Z0-9_-]+\.jpeg)$/);
+    if (websiteAsset) {
+        const assetRoot = path.resolve("assets/websites");
+        const assetPath = path.resolve(assetRoot, websiteAsset[1]);
+        if (!assetPath.startsWith(assetRoot + path.sep) || !fs.existsSync(assetPath)) {
+            res.writeHead(404); res.end(); return;
+        }
+        res.writeHead(200, {"Content-Type": "image/jpeg", "X-Content-Type-Options": "nosniff"});
+        fs.createReadStream(assetPath).pipe(res);
         return;
     }
 
@@ -500,6 +653,114 @@ const server = http.createServer((req, res) => {
 }).listen(PORT,"127.0.0.1");
 
 
+
+function loadJson(file, fallback) {
+    try { return JSON.parse(fs.readFileSync(file, "utf8")); }
+    catch (error) {
+        if (error.code !== "ENOENT") console.error("Could not read", file, error.message);
+        return structuredClone(fallback);
+    }
+}
+
+function writeJsonAtomic(file, value) {
+    const target = path.resolve(file);
+    const temp = target + "." + process.pid + ".tmp";
+    fs.writeFileSync(temp, JSON.stringify(value, null, 2), {encoding: "utf8", mode: 0o600});
+    fs.renameSync(temp, target);
+}
+function saveAccounts() { writeJsonAtomic("accounts.json", accountsDB); }
+function saveUploads() { writeJsonAtomic("uploads.json", uploadsDB); }
+
+function ensureLegacyAccounts() {
+    accountsDB.accounts ||= {};
+    accountsDB.sessions ||= {};
+    let changed = false;
+    for (const [legacyToken, user] of Object.entries(DB.users || {})) {
+        if (Object.values(accountsDB.accounts).some(a => a.legacyToken === legacyToken)) continue;
+        const username = String(typeof user === "string" ? user : (user?.name || ("user_" + legacyToken.slice(0, 8)))).slice(0, 24);
+        const id = crypto.createHash("sha256").update("xessenger-legacy:" + legacyToken).digest("hex").slice(0, 32);
+        accountsDB.accounts[id] = {id, username, email: "", passwordHash: null, legacyToken, createdAt: user?.created?.timestamp || Date.now(), needsSetup: true, legacy: true};
+        changed = true;
+    }
+    if (changed) saveAccounts();
+}
+function createSession(accountId, req) {
+    const sessionToken = crypto.randomBytes(32).toString("base64url");
+    accountsDB.sessions[sessionToken] = {accountId, createdAt: Date.now(), lastSeen: Date.now(), expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000, userAgent: String(req.headers["user-agent"] || "").slice(0, 220)};
+    return sessionToken;
+}
+async function hashPassword(password) {
+    const salt = crypto.randomBytes(16);
+    const key = await scrypt(password, salt, 64);
+    return salt.toString("hex") + ":" + key.toString("hex");
+}
+async function verifyPassword(password, encoded) {
+    try {
+        const parts = String(encoded).split(":");
+        const salt = Buffer.from(parts[0], "hex");
+        const expected = Buffer.from(parts[1], "hex");
+        if (salt.length !== 16 || expected.length !== 64) return false;
+        const actual = await scrypt(password, salt, expected.length);
+        return crypto.timingSafeEqual(actual, expected);
+    } catch { return false; }
+}
+function httpError(status, message) { const error = new Error(message); error.status = status; return error; }
+function sendApiError(res, error) {
+    if (res.headersSent) return;
+    const status = Number(error?.status) || 500;
+    if (status >= 500) console.error("Request failed:", error?.stack || error);
+    res.writeHead(status, {"Content-Type": "application/json", "Cache-Control": "no-store"});
+    res.end(JSON.stringify({error: status >= 500 ? "Internal server error." : error.message}));
+}
+async function readBuffer(req, maxBytes) {
+    const chunks = [];
+    let total = 0;
+    for await (const chunk of req) {
+        total += chunk.length;
+        if (total > maxBytes) throw httpError(413, "Request body is too large.");
+        chunks.push(chunk);
+    }
+    return Buffer.concat(chunks, total);
+}
+async function readJson(req, maxBytes = 1048576) {
+    const buffer = await readBuffer(req, maxBytes);
+    try { return JSON.parse(buffer.toString("utf8") || "{}"); }
+    catch { throw httpError(400, "Invalid JSON body."); }
+}
+function cleanFilename(input) {
+    const name = String(input || "download").replace(/\\/g, "/").split("/").pop().replace(/[\u0000-\u001f\u007f]/g, "").trim();
+    return (name || "download").slice(0, 180);
+}
+function findMultipartFile(body, boundary, fieldName) {
+    const marker = Buffer.from("--" + boundary);
+    let cursor = 0;
+    while (true) {
+        const markerAt = body.indexOf(marker, cursor);
+        if (markerAt < 0) return null;
+        let start = markerAt + marker.length;
+        if (body.subarray(start, start + 2).toString() === "--") return null;
+        if (body.subarray(start, start + 2).toString() === "\r\n") start += 2;
+        const headerEnd = body.indexOf(Buffer.from("\r\n\r\n"), start);
+        if (headerEnd < 0) return null;
+        const headerText = body.subarray(start, headerEnd).toString("latin1");
+        const nextPart = body.indexOf(marker, headerEnd + 4);
+        if (nextPart < 0) return null;
+        const dataEnd = nextPart >= 2 && body.subarray(nextPart - 2, nextPart).toString() === "\r\n" ? nextPart - 2 : nextPart;
+        const disposition = headerText.match(/content-disposition:\s*form-data;[^\r\n]*/i)?.[0] || "";
+        const name = disposition.match(/(?:^|;)\s*name="([^"]*)"/i)?.[1];
+        const rawFilename = disposition.match(/(?:^|;)\s*filename="([^"]*)"/i)?.[1];
+        if (name === fieldName && rawFilename !== undefined) {
+            const filename = Buffer.from(rawFilename, "latin1").toString("utf8");
+            const type = headerText.match(/content-type:\s*([^\r\n]+)/i)?.[1]?.trim() || "application/octet-stream";
+            return {filename: cleanFilename(filename), type, data: body.subarray(headerEnd + 4, dataEnd)};
+        }
+        cursor = nextPart;
+    }
+}
+function publicAttachment(record) {
+    return {id: record.id, name: record.filename, size: record.size, type: record.type, url: "/media/" + record.id, downloadUrl: "/download/" + record.id};
+}
+
 function createRoom(token, name=null, desc=null, privacy=null) {
     const roomId = crypto.randomBytes(16).toString("hex");
     const alias = name??"room #"+roomId.slice(0,5)
@@ -520,7 +781,7 @@ function createRoom(token, name=null, desc=null, privacy=null) {
     }
     DB.users[token].rooms.push(roomId);
     dumpDBs();
-    return true
+    return roomId
 }
 
 function profileView(username) {
@@ -563,10 +824,8 @@ function getCookie(request, name) {
 }
 
 function deriveID(a,b,c) {
-    return crypto.createHash("sha256").update(a+b+c+crypto.randomBytes(20).toString("hex")).digest().toString();
+    return crypto.randomUUID();
 }
-
-async function screenshotWebsite(url,width=800,height=450){const browser=await chromium.launch({headless:!isServer,channel:"chromium"});try{const context=await browser.newContext({viewport:{width,height}}),parsed=new URL(url);if(parsed.hostname==="antrox.org")await context.addCookies([{name:"token",value:"6a201e7a",url:parsed.origin}]);const page=await context.newPage();await page.goto(url,{waitUntil:"domcontentloaded",timeout:10000});await page.waitForTimeout(300);const name=crypto.randomBytes(12).toString("hex")+".jpeg",file=path.join("assets/websites",name);await page.screenshot({path:file,type:"jpeg",quality:80,animations:"disabled"});return file}finally{await browser.close()}}
 
 async function sendPushNotifications(room, msg, senderToken) {
     if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY)
@@ -619,13 +878,54 @@ function loadHistory(historyFile="history.json") {
 }
 
 function refreshDBs() {
-    roomsDB = JSON.parse(fs.readFileSync("rooms.json"));
-    DB = JSON.parse(fs.readFileSync("database.json"));
+    roomsDB = loadJson("rooms.json", {});
+    DB = loadJson("database.json", {validTokens: [], users: {}, admins: []});
+    ensureDefaultRoom();
+    ensureLegacyAccounts();
+}
+
+function ensureDefaultRoom() {
+    let changed = false;
+    if (!roomsDB["0"]) {
+        roomsDB["0"] = {
+            alias: "global",
+            icon: "default-icon.jpeg",
+            members: [],
+            size: 0,
+            created: {creator: "SERVER", timestamp: Date.now()},
+            description: "The public Xessenger room.",
+            privacy: "Public",
+            builtin: true
+        };
+        changed = true;
+    }
+    const room = roomsDB["0"];
+    if (!Array.isArray(room.members)) {
+        room.members = [];
+        changed = true;
+    }
+    for (const [userToken, user] of Object.entries(DB.users || {})) {
+        if ((user?.rooms || []).some(id => String(id) === "0") && !room.members.includes(userToken)) {
+            room.members.push(userToken);
+            changed = true;
+        }
+    }
+    if (room.size !== room.members.length) {
+        room.size = room.members.length;
+        changed = true;
+    }
+    if (!room.created) {
+        room.created = {creator: "SERVER", timestamp: Date.now()};
+        changed = true;
+    }
+    if (!room.description) room.description = "";
+    if (!room.privacy) room.privacy = "Public";
+    if (changed) dumpDBs();
 }
 
 function dumpDBs() {
-    fs.writeFileSync("rooms.json",JSON.stringify(roomsDB,null,2), "utf8");
-    fs.writeFileSync("database.json",JSON.stringify(DB,null,2), "utf8");
+    writeJsonAtomic("rooms.json", roomsDB);
+    writeJsonAtomic("database.json", DB);
 }
 
 function gracefulShutdown(signalOrError, SAVE_MESSAGES=false, historyFile="history.json", originUser="", originPath="") {
