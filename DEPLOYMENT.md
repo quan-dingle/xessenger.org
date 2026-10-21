@@ -20,4 +20,6 @@ On first request the server imports current legacy user records into accounts.js
 
 ## Files and previews
 
-Uploads are limited to 50 MiB and stored outside the public directory under random IDs. /download/:id requires an authenticated session and forces download; /media/:id is limited to image, audio, video and PDF MIME types. TikTok, Instagram, and YouTube embeds are loaded client-side only after clicking an embed button. Other links remain safe external cards.
+Uploads are limited to 50 MiB and stored outside the public directory under random IDs. Downloads require an authenticated session, and attachments are shared with members of the room where they are sent. The media route renders only a narrow allowlist of raster images and audio/video formats inline; SVG, HTML, scripts, PDFs and other types are download-only. TikTok, Instagram and YouTube embeds load client-side only after the user clicks an embed button. Other links remain safe external cards.
+
+Email addresses are syntax-checked and unique, but email verification and password-reset delivery are not configured because the project has no mail-provider integration yet.
