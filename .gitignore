@@ -1,6 +1,7 @@
-node_modules/
+
 assets/websites/
 #patterns/
-*.json
+database.json
+rooms.json
 upload.py
 .idea
